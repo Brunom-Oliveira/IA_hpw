@@ -1,12 +1,17 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import api from "../api";
 
 export default function ChatRag() {
   const [question, setQuestion] = useState("");
-  const [topK, setTopK] = useState(6);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [messages, setMessages] = useState([]);
+  const topK = useMemo(() => {
+    const saved = Number(localStorage.getItem("rag_top_k") || 6);
+    if (!Number.isFinite(saved)) return 6;
+    return Math.min(10, Math.max(1, Math.round(saved)));
+  }, [messages.length]);
 
   async function handleAsk(event) {
     event.preventDefault();
@@ -83,6 +88,9 @@ export default function ChatRag() {
       </div>
 
       <form className="chat-form" onSubmit={handleAsk}>
+        <p className="chat-meta">
+          Top K atual: <strong>{topK}</strong> · alterar em <Link to="/settings">Configuracao</Link>
+        </p>
         <label>
           Pergunta
           <textarea
@@ -90,16 +98,6 @@ export default function ChatRag() {
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             placeholder="Ex.: Quais constraints importantes da tabela MERCADORIA_461?"
-          />
-        </label>
-        <label>
-          Top K
-          <input
-            type="number"
-            min="1"
-            max="10"
-            value={topK}
-            onChange={(e) => setTopK(e.target.value)}
           />
         </label>
         <button type="submit" disabled={loading}>
