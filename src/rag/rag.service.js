@@ -7,6 +7,8 @@ const { AVAILABLE_CONTEXT } = require("./rag.constants");
 
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
 const CHAT_MODEL = process.env.LLM_MODEL || "mistral";
+const OLLAMA_TIMEOUT_MS = Number(process.env.OLLAMA_TIMEOUT_MS || 480000);
+const RAG_MAX_OUTPUT_TOKENS = Number(process.env.RAG_MAX_OUTPUT_TOKENS || 220);
 
 class RagService {
   constructor() {
@@ -26,7 +28,7 @@ Pergunta:
 ${question}`;
   }
 
-  async ask(question) {
+  async ask(question, requestedTopK) {
     const startedAt = Date.now();
 
     try {
@@ -36,7 +38,7 @@ ${question}`;
         throw error;
       }
 
-      const topK = this.chooseTopK(question);
+      const topK = this.resolveTopK(question, requestedTopK);
       const questionEmbedding = await this.embeddingService.generateEmbedding(question);
       const hits = await this.searchService.searchByVector(questionEmbedding, topK);
 
@@ -50,6 +52,13 @@ ${question}`;
         model: CHAT_MODEL,
         prompt,
         stream: false,
+        keep_alive: "30m",
+        options: {
+          temperature: 0.1,
+          num_predict: Number.isFinite(RAG_MAX_OUTPUT_TOKENS) ? RAG_MAX_OUTPUT_TOKENS : 220,
+        },
+      }, {
+        timeout: Number.isFinite(OLLAMA_TIMEOUT_MS) ? OLLAMA_TIMEOUT_MS : 480000,
       });
 
       const inputTokens = Number(response.data && response.data.prompt_eval_count) || estimatedPromptTokens;
@@ -106,6 +115,15 @@ ${question}`;
 
       throw error;
     }
+  }
+
+  resolveTopK(question, requestedTopK) {
+    const parsedTopK = Number(requestedTopK);
+    if (Number.isFinite(parsedTopK)) {
+      return Math.min(10, Math.max(1, Math.round(parsedTopK)));
+    }
+
+    return this.chooseTopK(question);
   }
 
   chooseTopK(question) {

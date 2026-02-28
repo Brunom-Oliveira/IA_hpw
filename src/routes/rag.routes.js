@@ -40,12 +40,12 @@ if (enableTokenGuard) {
 
 router.post("/ask", ...askMiddlewares, async (req, res) => {
   try {
-    const { question } = req.body || {};
+    const { question, topK } = req.body || {};
     if (!question) {
       return res.status(400).json({ error: "Campo question e obrigatorio" });
     }
 
-    const result = await ragService.ask(question);
+    const result = await ragService.ask(question, topK);
     return res.json(result);
   } catch (error) {
     console.error("[rag][ask] Falha:", error.message);
