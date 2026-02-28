@@ -58,19 +58,38 @@ class SearchService {
     await this.ensureCollection();
 
     try {
-      const response = await axios.post(`${QDRANT_URL}/collections/${COLLECTION_NAME}/points/search`, {
+      // Qdrant mais novo: /points/query
+      const queryResponse = await axios.post(`${QDRANT_URL}/collections/${COLLECTION_NAME}/points/query`, {
+        query: vector,
+        limit,
+        with_payload: true,
+      });
+
+      const result = queryResponse.data && queryResponse.data.result ? queryResponse.data.result : [];
+      if (Array.isArray(result)) return result;
+      if (result && Array.isArray(result.points)) return result.points;
+      return [];
+    } catch (error) {
+      if (!error.response || error.response.status !== 404) {
+        console.error("[rag][qdrant] Erro na busca vetorial (query):", error.message);
+        throw error;
+      }
+    }
+
+    try {
+      // Qdrant legado: /points/search
+      const searchResponse = await axios.post(`${QDRANT_URL}/collections/${COLLECTION_NAME}/points/search`, {
         vector,
         limit,
         with_payload: true,
       });
 
-      return response.data && response.data.result ? response.data.result : [];
+      return searchResponse.data && searchResponse.data.result ? searchResponse.data.result : [];
     } catch (error) {
-      console.error("[rag][qdrant] Erro na busca vetorial:", error.message);
+      console.error("[rag][qdrant] Erro na busca vetorial (search):", error.message);
       throw error;
     }
   }
 }
 
 module.exports = { SearchService };
-
