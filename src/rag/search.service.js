@@ -57,6 +57,7 @@ class SearchService {
   async searchByVector(vector, limit = 5) {
     await this.ensureCollection();
 
+    let queryError = null;
     try {
       // Qdrant mais novo: /points/query
       const queryResponse = await axios.post(`${QDRANT_URL}/collections/${COLLECTION_NAME}/points/query`, {
@@ -70,10 +71,8 @@ class SearchService {
       if (result && Array.isArray(result.points)) return result.points;
       return [];
     } catch (error) {
-      if (!error.response || error.response.status !== 404) {
-        console.error("[rag][qdrant] Erro na busca vetorial (query):", error.message);
-        throw error;
-      }
+      queryError = error;
+      console.warn("[rag][qdrant] Falha em /points/query, tentando /points/search:", error.message);
     }
 
     try {
@@ -87,6 +86,9 @@ class SearchService {
       return searchResponse.data && searchResponse.data.result ? searchResponse.data.result : [];
     } catch (error) {
       console.error("[rag][qdrant] Erro na busca vetorial (search):", error.message);
+      if (queryError) {
+        console.error("[rag][qdrant] Erro anterior em /points/query:", queryError.message);
+      }
       throw error;
     }
   }
