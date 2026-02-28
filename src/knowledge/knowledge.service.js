@@ -1,4 +1,5 @@
 const axios = require("axios");
+const crypto = require("crypto");
 const { KnowledgeTransformer } = require("./knowledge.transformer");
 const { KnowledgeValidator } = require("./knowledge.validator");
 const { SchemaParser } = require("../schema/schema.parser");
@@ -250,11 +251,7 @@ class KnowledgeService {
   }
 
   generateId(seed) {
-    const safeSeed = String(seed || "knowledge")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "");
-    return `${safeSeed}-${Date.now()}-${Math.floor(Math.random() * 1e8)}`;
+    return crypto.randomUUID();
   }
 }
 
