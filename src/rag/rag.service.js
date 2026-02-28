@@ -88,7 +88,22 @@ ${question}`;
         usage,
       };
     } catch (error) {
-      console.error("[rag][ask] Falha:", error.message);
+      const upstreamStatus = error.response && error.response.status;
+      const upstreamBody = error.response && error.response.data;
+      const upstreamErrorMessage =
+        (upstreamBody && (upstreamBody.error || upstreamBody.message)) || null;
+
+      console.error("[rag][ask] Falha:", {
+        message: error.message,
+        status: upstreamStatus || null,
+        upstream: upstreamBody || null,
+      });
+
+      if (upstreamErrorMessage && !error.statusCode) {
+        error.statusCode = upstreamStatus || 500;
+        error.message = String(upstreamErrorMessage);
+      }
+
       throw error;
     }
   }
