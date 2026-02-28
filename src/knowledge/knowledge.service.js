@@ -2,6 +2,7 @@ const axios = require("axios");
 const { KnowledgeTransformer } = require("./knowledge.transformer");
 const { KnowledgeValidator } = require("./knowledge.validator");
 const { SchemaParser } = require("../schema/schema.parser");
+const { parseDDL } = require("../sql/sqlParser");
 
 const QDRANT_URL = process.env.QDRANT_URL || "http://qdrant:6333";
 const COLLECTION_NAME = "knowledge_base";
@@ -73,7 +74,7 @@ class KnowledgeService {
       throw error;
     }
 
-    const tableDefs = this.schemaParser.parseSql(sqlText);
+    const tableDefs = this.parseSqlWithFallback(sqlText);
     const indexed = [];
     for (const tableDef of tableDefs) {
       const doc = this.transformer.tableToKnowledgeDocument(tableDef, sourceName);
@@ -89,6 +90,25 @@ class KnowledgeService {
       total: indexed.length,
       items: indexed,
     };
+  }
+
+  parseSqlWithFallback(sqlText) {
+    try {
+      return this.schemaParser.parseSql(sqlText);
+    } catch (error) {
+      console.warn("[knowledge][sql] Parser principal falhou, usando parser DDL regex:", error.message);
+      const parsed = parseDDL(sqlText);
+      const tables = Array.isArray(parsed && parsed.tables) ? parsed.tables : [];
+      return tables.map((table) => ({
+        table: table.table_name,
+        columns: table.columns || [],
+        primaryKey: table.primary_key || [],
+        foreignKeys: (table.foreign_keys || []).map((fk) => ({
+          field: (fk.columns && fk.columns[0]) || "",
+          referencedTable: `${fk.references.schema}.${fk.references.table_name}`,
+        })),
+      }));
+    }
   }
 
   async indexOne(structuredData) {
@@ -239,4 +259,3 @@ class KnowledgeService {
 }
 
 module.exports = { KnowledgeService };
-
