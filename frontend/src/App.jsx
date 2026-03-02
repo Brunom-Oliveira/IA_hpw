@@ -22,11 +22,6 @@ export default function App() {
         <p className="sidebar-tagline">Pergunte. Entenda. Execute.</p>
         <nav>
           <Link to="/chat">Perguntas</Link>
-          <Link to="/dashboard">Dashboard</Link>
-          <Link to="/add">Novo Conhecimento</Link>
-          <Link to="/upload-audio">Audio Transcription</Link>
-          <Link to="/upload-sql">Schema SQL</Link>
-          <hr className="nav-divider" />
           <Link to="/settings">Configuracao</Link>
         </nav>
       </aside>

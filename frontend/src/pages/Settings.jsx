@@ -52,9 +52,9 @@ export default function Settings() {
           <h3>Administracao</h3>
           <div className="settings-links">
             <Link to="/dashboard">Dashboard</Link>
-            <Link to="/add">Inserir Manual</Link>
-            <Link to="/upload-audio">Upload Audio</Link>
-            <Link to="/upload-sql">Upload SQL</Link>
+            <Link to="/add">Novo Conhecimento</Link>
+            <Link to="/upload-audio">Audio Transcription</Link>
+            <Link to="/upload-sql">Schema SQL</Link>
           </div>
         </article>
       </div>
