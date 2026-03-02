@@ -11,12 +11,12 @@ export default function App() {
     <div className="layout">
       <aside className="sidebar">
         <img
-          src="/logo.png"
+          src="/logo-harpia.png"
           alt="Harpia Vision"
           className="sidebar-logo"
         />
         <h1>Harpia Vision</h1>
-        <p className="sidebar-tagline">Inteligência Logística de Ponta</p>
+        <p className="sidebar-tagline">Pergunte. Entenda. Execute.</p>
         <nav>
           <Link to="/chat">Perguntas</Link>
           <Link to="/settings">Configuração</Link>

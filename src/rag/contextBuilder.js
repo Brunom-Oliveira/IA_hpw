@@ -1,6 +1,8 @@
 const { AVAILABLE_CONTEXT } = require("./rag.constants");
 const { estimateTokens } = require("./tokenManager");
 
+const MAX_DOC_TOKENS = Number(process.env.RAG_MAX_DOC_TOKENS || 550);
+
 function deduplicateDocs(retrievedDocs) {
   const docs = Array.isArray(retrievedDocs) ? retrievedDocs : [];
   const sortedDocs = [...docs].sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
@@ -31,14 +33,15 @@ function deduplicateDocs(retrievedDocs) {
 
 function buildContext(question, retrievedDocs) {
   const deduped = deduplicateDocs(retrievedDocs);
+  const ranked = rankByLexicalRelevance(question, deduped);
   const questionTokens = estimateTokens(question);
   const tokenBudget = Math.max(256, AVAILABLE_CONTEXT - questionTokens);
   let totalTokens = 0;
   const chunks = [];
 
   // Inclui documentos por ordem de relevancia ate estourar o budget disponivel.
-  for (const doc of deduped) {
-    const text = extractText(doc);
+  for (const doc of ranked) {
+    const text = trimTextToTokenBudget(extractText(doc), MAX_DOC_TOKENS);
     if (!text) continue;
 
     const docTokens = estimateTokens(text);
@@ -55,8 +58,42 @@ function buildContext(question, retrievedDocs) {
     usedTokens: totalTokens,
     tokenBudget,
     selectedDocs: chunks.length,
-    dedupedDocs: deduped.length,
+    dedupedDocs: ranked.length,
   };
+}
+
+function rankByLexicalRelevance(question, docs) {
+  const qTokens = new Set(normalizeText(question).split(" ").filter((token) => token.length >= 3));
+  if (!qTokens.size) return docs;
+
+  return [...docs].sort((a, b) => {
+    const textA = normalizeText(extractText(a));
+    const textB = normalizeText(extractText(b));
+    const overlapA = countOverlap(textA, qTokens);
+    const overlapB = countOverlap(textB, qTokens);
+
+    if (overlapA !== overlapB) return overlapB - overlapA;
+    return Number(b.score || 0) - Number(a.score || 0);
+  });
+}
+
+function countOverlap(text, tokens) {
+  let hits = 0;
+  for (const token of tokens) {
+    if (text.includes(token)) hits += 1;
+  }
+  return hits;
+}
+
+function trimTextToTokenBudget(text, maxTokens) {
+  const normalized = String(text || "").trim();
+  if (!normalized) return "";
+  if (!Number.isFinite(maxTokens) || maxTokens <= 0) return normalized;
+
+  const maxChars = maxTokens * 4;
+  if (normalized.length <= maxChars) return normalized;
+
+  return `${normalized.slice(0, maxChars)}\n\n[trecho truncado para otimizar latencia]`;
 }
 
 function extractText(doc) {
@@ -82,4 +119,5 @@ function simpleHash(text) {
 module.exports = {
   buildContext,
   deduplicateDocs,
+  rankByLexicalRelevance,
 };
