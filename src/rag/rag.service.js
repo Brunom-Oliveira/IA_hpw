@@ -10,6 +10,7 @@ const CHAT_MODEL = process.env.LLM_MODEL || "mistral";
 const OLLAMA_TIMEOUT_MS = Number(process.env.OLLAMA_TIMEOUT_MS || 480000);
 const RAG_MAX_OUTPUT_TOKENS = Number(process.env.RAG_MAX_OUTPUT_TOKENS || 220);
 const RAG_KEEP_ALIVE = process.env.RAG_KEEP_ALIVE || "5m";
+const RAG_NUM_CTX = Number(process.env.RAG_NUM_CTX || 2048);
 
 class RagService {
   constructor() {
@@ -45,6 +46,27 @@ ${question}`;
 
       // Contexto eh montado sob budget fixo de tokens para evitar overflow no modelo.
       const contextData = buildContext(question, hits);
+      if (!contextData.context) {
+        return {
+          answer: "Nao encontrei informacoes suficientes na base para responder com seguranca.",
+          context: "",
+          matches: hits.length,
+          top_k_used: topK,
+          context_meta: {
+            token_budget: contextData.tokenBudget,
+            used_tokens: contextData.usedTokens,
+            selected_docs: contextData.selectedDocs,
+            deduped_docs: contextData.dedupedDocs,
+          },
+          usage: {
+            input_tokens: 0,
+            output_tokens: 0,
+            total_tokens: 0,
+            execution_time_ms: Date.now() - startedAt,
+          },
+        };
+      }
+
       const prompt = this.buildPrompt(contextData.context, question);
 
       const estimatedPromptTokens = assertPromptFitsWindow(prompt);
@@ -57,6 +79,7 @@ ${question}`;
         options: {
           temperature: 0.1,
           num_predict: Number.isFinite(RAG_MAX_OUTPUT_TOKENS) ? RAG_MAX_OUTPUT_TOKENS : 220,
+          num_ctx: Number.isFinite(RAG_NUM_CTX) ? Math.max(512, Math.round(RAG_NUM_CTX)) : 2048,
         },
       }, {
         timeout: Number.isFinite(OLLAMA_TIMEOUT_MS) ? OLLAMA_TIMEOUT_MS : 480000,
