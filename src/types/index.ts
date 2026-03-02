@@ -16,7 +16,21 @@ export interface VectorDbPort {
   search(queryEmbedding: number[], topK: number): Promise<SearchResult[]>;
 }
 
+export interface LlmUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  executionTimeMs: number;
+}
+
+export interface RagResponse {
+  answer: string;
+  context: string;
+  matches: number;
+  usage: LlmUsage;
+}
+
 export interface LlmPort {
-  generate(prompt: string, options?: { temperature?: number }): Promise<string>;
+  generate(prompt: string, options?: { temperature?: number }): Promise<{ response: string; usage: LlmUsage }>;
 }
 

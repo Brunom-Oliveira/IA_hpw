@@ -55,8 +55,8 @@ export class ClassificationService {
       `Texto: ${text}`,
     ].join("\n");
 
-    const raw = await this.llm.generate(prompt, { temperature: 0.1 });
-    const parsed = this.tryParse(raw);
+    const result = await this.llm.generate(prompt, { temperature: 0.1 });
+    const parsed = this.tryParse(result.response);
     return parsed ?? this.classifyByRules(text);
   }
 

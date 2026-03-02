@@ -5,7 +5,6 @@ import { ChromaVectorDbService } from "./services/vector-db/chromaVectorDbServic
 import { EmbeddingService } from "./services/llm/embeddingService";
 import { RagService } from "./services/ragService";
 import { LlmService } from "./services/llm/llmService";
-import { ChatService } from "./services/chatService";
 import { WhisperService } from "./services/whisper/whisperService";
 import { ClassificationService } from "./services/classificationService";
 import { DocumentController } from "./controllers/documentController";
@@ -27,12 +26,13 @@ export const buildApp = () => {
 
   const vectorDb = new ChromaVectorDbService();
   const embeddingService = new EmbeddingService();
-  const ragService = new RagService(vectorDb, embeddingService);
   const llmService = new LlmService();
+  const ragService = new RagService(vectorDb, embeddingService, llmService);
 
   const documentController = new DocumentController(ragService);
   const classificationController = new ClassificationController(new ClassificationService(llmService));
-  const chatController = new ChatController(new ChatService(ragService, llmService));
+  const chatController = new ChatController(ragService);
+
   const transcribeController = new TranscribeController(new WhisperService());
 
   app.use(

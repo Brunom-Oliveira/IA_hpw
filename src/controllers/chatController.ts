@@ -1,20 +1,24 @@
 import { Request, Response } from "express";
-import { ChatService } from "../services/chatService";
+import { RagService } from "../services/ragService";
 
 export class ChatController {
-  constructor(private readonly service: ChatService) {}
+  constructor(private readonly ragService: RagService) {}
 
   ask = async (req: Request, res: Response): Promise<void> => {
     const message = req.body?.message as string;
-    const topK = Number(req.body?.topK ?? 4);
+    const topK = req.body?.topK ? Number(req.body.topK) : undefined;
 
     if (!message || typeof message !== "string") {
       res.status(400).json({ error: "message obrigatoria" });
       return;
     }
 
-    const result = await this.service.ask(message, topK);
-    res.json(result);
+    try {
+      const result = await this.ragService.ask(message, topK);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erro no processamento do chat" });
+    }
   };
 }
 

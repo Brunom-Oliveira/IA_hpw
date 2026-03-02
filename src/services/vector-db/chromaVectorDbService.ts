@@ -1,4 +1,4 @@
-import { ChromaClient, Collection } from "chromadb";
+import { ChromaClient, Collection, IncludeEnum } from "chromadb";
 import { DocumentChunk, SearchResult, VectorDbPort } from "../../types";
 import { env } from "../../utils/env";
 
@@ -10,25 +10,20 @@ export class ChromaVectorDbService implements VectorDbPort {
     this.client = new ChromaClient({ path: env.chromaUrl });
   }
 
-  private async getCollection(): Promise<Collection> {
+  private async ensureCollection(): Promise<Collection> {
     if (this.collection) return this.collection;
 
-    try {
-      // Reutiliza colecao existente para evitar reindexacao desnecessaria.
-      this.collection = await this.client.getCollection({ name: env.chromaCollection });
-    } catch {
-      // Cria automaticamente na primeira execucao.
-      this.collection = await this.client.createCollection({
-        name: env.chromaCollection,
-        metadata: { description: "Colecao para RAG de tickets e documentos" },
-      });
-    }
+    // getOrCreateCollection handles both scenarios and is more robust.
+    this.collection = await this.client.getOrCreateCollection({
+      name: env.chromaCollection,
+      metadata: { description: "Colecao para RAG de tickets e documentos" },
+    });
 
     return this.collection;
   }
 
   async upsert(documents: DocumentChunk[], embeddings: number[][]): Promise<void> {
-    const collection = await this.getCollection();
+    const collection = await this.ensureCollection();
 
     await collection.upsert({
       ids: documents.map((doc) => doc.id),
@@ -39,11 +34,11 @@ export class ChromaVectorDbService implements VectorDbPort {
   }
 
   async search(queryEmbedding: number[], topK: number): Promise<SearchResult[]> {
-    const collection = await this.getCollection();
+    const collection = await this.ensureCollection();
     const result = await collection.query({
       queryEmbeddings: [queryEmbedding],
       nResults: topK,
-      include: ["documents", "metadatas", "distances"],
+      include: [IncludeEnum.Documents, IncludeEnum.Metadatas, IncludeEnum.Distances],
     });
 
     const ids = result.ids[0] ?? [];
@@ -59,3 +54,4 @@ export class ChromaVectorDbService implements VectorDbPort {
     }));
   }
 }
+

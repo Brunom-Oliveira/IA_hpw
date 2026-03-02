@@ -64,6 +64,13 @@ body {
   background: #1e293b;
 }
 
+.nav-divider {
+  border: 0;
+  border-top: 1px solid #1e293b;
+  margin: 10px 0;
+  opacity: 0.5;
+}
+
 .content {
   padding: 24px;
 }

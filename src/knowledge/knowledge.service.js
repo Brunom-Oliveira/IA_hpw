@@ -76,14 +76,27 @@ class KnowledgeService {
     }
 
     const tableDefs = this.parseSqlWithFallback(sqlText);
+    if (!Array.isArray(tableDefs) || tableDefs.length === 0) {
+      const error = new Error("Nao foi possivel identificar CREATE TABLE valido no arquivo SQL");
+      error.statusCode = 400;
+      throw error;
+    }
+
     const indexed = [];
     for (const tableDef of tableDefs) {
+      if (!tableDef || !tableDef.table) continue;
       const doc = this.transformer.tableToKnowledgeDocument(tableDef, sourceName);
       const result = await this.indexOne(doc);
       indexed.push({
         table: tableDef.table,
         id: result.id,
       });
+    }
+
+    if (indexed.length === 0) {
+      const error = new Error("Nenhuma tabela valida encontrada para indexacao");
+      error.statusCode = 400;
+      throw error;
     }
 
     return {
@@ -98,17 +111,23 @@ class KnowledgeService {
       return this.schemaParser.parseSql(sqlText);
     } catch (error) {
       console.warn("[knowledge][sql] Parser principal falhou, usando parser DDL regex:", error.message);
-      const parsed = parseDDL(sqlText);
-      const tables = Array.isArray(parsed && parsed.tables) ? parsed.tables : [];
-      return tables.map((table) => ({
-        table: table.table_name,
-        columns: table.columns || [],
-        primaryKey: table.primary_key || [],
-        foreignKeys: (table.foreign_keys || []).map((fk) => ({
-          field: (fk.columns && fk.columns[0]) || "",
-          referencedTable: `${fk.references.schema}.${fk.references.table_name}`,
-        })),
-      }));
+      try {
+        const parsed = parseDDL(sqlText);
+        const tables = Array.isArray(parsed && parsed.tables) ? parsed.tables : [];
+        return tables.map((table) => ({
+          table: table.table_name,
+          columns: table.columns || [],
+          primaryKey: table.primary_key || [],
+          foreignKeys: (table.foreign_keys || []).map((fk) => ({
+            field: (fk.columns && fk.columns[0]) || "",
+            referencedTable: `${fk.references.schema}.${fk.references.table_name}`,
+          })),
+        }));
+      } catch (fallbackError) {
+        const invalidError = new Error("Arquivo SQL invalido para parser");
+        invalidError.statusCode = 400;
+        throw invalidError;
+      }
     }
   }
 

@@ -31,7 +31,7 @@ export class DocumentController {
       return;
     }
 
-    const results = await this.ragService.searchContext(query, topK);
+    const results = await this.ragService.search(query, topK);
     res.json({ query, results });
   };
 }

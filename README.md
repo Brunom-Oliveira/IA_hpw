@@ -120,30 +120,31 @@ Base URL: `http://localhost:3000/rag`
 ```
 Fluxo: embedding da pergunta -> top 5 no Qdrant -> prompt com contexto -> resposta do Ollama.
 
-### Controle de tokens no RAG
+## Arquitetura de IA (Performance & VPS Optimized)
 
-Arquivos:
-- `src/rag/rag.constants.js`
-- `src/rag/tokenManager.js`
-- `src/rag/contextBuilder.js`
-- `src/rag/rag.service.js`
+O sistema foi otimizado para rodar em uma VPS com **4 núcleos e 8GB de RAM**:
+- **Banco Vetorial**: Unificado no **ChromaDB** (leve e integrado ao Node).
+- **Lógica de RAG**: Implementada em TypeScript com **Token Management** ativo.
+- **Janela de Contexto**: Limitada a 4096 tokens (Ollama padrão) com reserva para respostas.
+- **Provider**: Suporte a Ollama e llama.cpp (server).
 
-Politica:
-- Janela total: `4096`
-- Reserva resposta: `500`
-- Reserva system/instrucoes: `300`
-- Contexto disponivel: `3296`
+### Controle de Tokens e Qualidade
+O `RagService` agora gerencia automaticamente:
+- **Janela Dinâmica**: Reserva espaço para a resposta do LLM e instruções de sistema.
+- **Prompt Especialista**: A IA atua como um **Analista HarpiaWMS**, focando em diagnósticos técnicos e referências a tabelas SQL.
+- **Recall Inteligente**: O `topK` é ajustado automaticamente com base na complexidade da pergunta.
 
-Recursos:
-- Estimativa: `estimateTokens(text) = Math.ceil(text.length / 4)`
-- Deduplicacao simples antes de montar contexto
-- Context builder com budget de tokens
-- Protecao opcional por middleware (`RAG_ENABLE_TOKEN_GUARD=true`)
-- Logs de uso reais do Ollama:
-  - `prompt_eval_count` (input)
-  - `eval_count` (output)
-  - `total_tokens`
-  - `execution_time_ms`
+### Endpoints Principais (API v2)
+
+Base URL: `http://localhost:3000/api`
+
+- `POST /chat`
+  - Envia pergunta e recebe resposta contextualizada do WMS.
+  - Inclui metadados de uso (tokens e tempo de execução).
+- `POST /documents`
+  - Indexa novos manuais ou registros técnicos.
+- `POST /transcribe`
+  - Transcrição Whisper vinculada ao fluxo de conhecimento.
 
 ## Endpoint Schema Ingest (DDL -> conhecimento semantico)
 

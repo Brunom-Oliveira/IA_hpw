@@ -3,6 +3,7 @@ import { promises as fs } from "fs";
 import pdfParse from "pdf-parse";
 import { ChromaVectorDbService } from "../services/vector-db/chromaVectorDbService";
 import { EmbeddingService } from "../services/llm/embeddingService";
+import { LlmService } from "../services/llm/llmService";
 import { RagService } from "../services/ragService";
 import { chunkText } from "../utils/text";
 import { env } from "../utils/env";
@@ -25,7 +26,7 @@ const run = async () => {
   const targetDir = path.resolve(process.cwd(), "data/documents");
   const files = await fs.readdir(targetDir);
 
-  const ragService = new RagService(new ChromaVectorDbService(), new EmbeddingService());
+  const ragService = new RagService(new ChromaVectorDbService(), new EmbeddingService(), new LlmService());
   const docs: Array<{ text: string; metadata: Record<string, string> }> = [];
 
   for (const fileName of files) {
