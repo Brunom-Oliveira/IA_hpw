@@ -24,7 +24,7 @@ export default function App() {
     <div className="layout">
       <aside className="sidebar">
         <img src="/logo-harpia.png" alt="Harpia Vision" className="sidebar-logo" />
-        <h1>Harpia Vision</h1>
+        <h1>Harpia</h1>
         <p className="sidebar-tagline">Pergunte. Entenda. Execute.</p>
 
         <nav>
