@@ -165,7 +165,7 @@ function parseInlineForeignKey(definition, columnName) {
 }
 
 function parseCheckConstraint(definition) {
-  const expressionMatch = definition.match(/\bcheck\s*\(([\s\S]+)\)\s*$/i);
+  const expressionMatch = definition.match(/\bcheck\s*\(([\s\S]*?)\)/i);
   const nameMatch = definition.match(/^constraint\s+("?[\w$#]+"?)/i);
   return {
     name: nameMatch ? cleanupIdentifier(nameMatch[1]) : null,
@@ -186,16 +186,47 @@ function attachAlterTableConstraints(sqlText, tableMap) {
     }
 
     const clause = match[2].trim();
-    if (/primary\s+key/i.test(clause)) {
-      table.primary_key = unique(table.primary_key.concat(extractColumnsFromConstraint(clause)));
+    const normalizedClause = clause
+      .replace(/^\(\s*/, "")
+      .replace(/\)\s*$/m, "");
+    const defs = splitTopLevelByComma(normalizedClause);
+
+    for (const rawDef of defs) {
+      const definition = rawDef.trim();
+      if (!definition) continue;
+
+      if (/^(constraint\s+\S+\s+)?primary\s+key/i.test(definition)) {
+        table.primary_key = unique(table.primary_key.concat(extractColumnsFromConstraint(definition)));
+        continue;
+      }
+
+      if (/^(constraint\s+\S+\s+)?foreign\s+key/i.test(definition)) {
+        const fk = parseForeignKeyDefinition(definition);
+        if (fk) table.foreign_keys.push(fk);
+        continue;
+      }
+
+      if (/check\s*\(/i.test(definition)) {
+        const check = parseCheckConstraint(definition);
+        if (check.expression) table.check_constraints.push(check);
+      }
     }
-    if (/foreign\s+key/i.test(clause)) {
-      const fk = parseForeignKeyDefinition(clause);
-      if (fk) table.foreign_keys.push(fk);
+
+    if (!defs.length) {
+      if (/primary\s+key/i.test(clause)) {
+        table.primary_key = unique(table.primary_key.concat(extractColumnsFromConstraint(clause)));
+      }
+      if (/foreign\s+key/i.test(clause)) {
+        const fk = parseForeignKeyDefinition(clause);
+        if (fk) table.foreign_keys.push(fk);
+      }
+      if (/check\s*\(/i.test(clause)) {
+        const check = parseCheckConstraint(clause);
+        if (check.expression) table.check_constraints.push(check);
+      }
     }
-    if (/check\s*\(/i.test(clause)) {
-      table.check_constraints.push(parseCheckConstraint(clause));
-    }
+
+    table.check_constraints = uniqueChecks(table.check_constraints);
 
     match = regex.exec(sqlText);
   }
@@ -323,7 +354,26 @@ function unique(list) {
   return Array.from(new Set((list || []).filter(Boolean)));
 }
 
+function uniqueChecks(checks) {
+  const validChecks = Array.isArray(checks) ? checks : [];
+  const seen = new Set();
+  const uniqueList = [];
+
+  for (const check of validChecks) {
+    const expression = String(check && check.expression ? check.expression : "").trim();
+    if (!expression) continue;
+    const key = expression.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    uniqueList.push({
+      name: check && check.name ? check.name : null,
+      expression,
+    });
+  }
+
+  return uniqueList;
+}
+
 module.exports = {
   parseDDL,
 };
-

@@ -65,6 +65,7 @@ class KnowledgeTransformer {
       .slice(0, 8)
       .map((constraint) => (constraint && constraint.expression ? constraint.expression : ""))
       .filter(Boolean);
+    const checkLines = topChecks.map((expression) => `CHECK: ${expression}`);
     const checkSummary = topChecks.length
       ? `Checks: ${topChecks.join(" | ")}`
       : "Checks nao identificados.";
@@ -76,6 +77,7 @@ class KnowledgeTransformer {
       title: `Estrutura da tabela ${tableDef.table}`,
       problem: `Documentacao tecnica da estrutura da tabela ${tableDef.table}.`,
       symptoms: [
+        ...checkLines,
         ...limitedColumns.map((column) => `${column.name} (${column.type})`),
         ...(extraColumns > 0 ? [`... +${extraColumns} colunas omitidas para compactacao`] : []),
       ],

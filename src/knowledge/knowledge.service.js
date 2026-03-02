@@ -120,6 +120,7 @@ class KnowledgeService {
           table: table.table_name,
           columns: table.columns || [],
           primaryKey: table.primary_key || [],
+          check_constraints: table.check_constraints || [],
           foreignKeys: (table.foreign_keys || []).map((fk) => ({
             field: (fk.columns && fk.columns[0]) || "",
             referencedTable: `${fk.references.schema}.${fk.references.table_name}`,
