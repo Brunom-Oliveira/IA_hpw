@@ -537,6 +537,24 @@ button.secondary:hover {
   background: var(--border-main);
 }
 
+.sources-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-main);
+}
+
+.source-tag {
+  background: var(--bg-main);
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.4rem;
+  font-size: 0.7rem;
+  color: var(--primary);
+  border: 1px solid var(--border-main);
+}
+
 .settings-links {
   display: grid;
   grid-template-columns: 1fr 1fr;

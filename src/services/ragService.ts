@@ -41,7 +41,27 @@ export class RagService {
       context: contextData,
       matches: hits.length,
       usage: result.usage,
+      sources: hits.map(h => ({ title: String(h.metadata?.title || "Documento"), category: String(h.metadata?.category || "Geral") }))
     };
+  }
+
+  async askStream(question: string, onToken: (chunk: any) => void, topK?: number): Promise<void> {
+    const resolvedTopK = this.resolveTopK(question, topK);
+    const queryEmbedding = await this.embeddingService.embed(question);
+    const hits = await this.vectorDb.search(queryEmbedding, resolvedTopK);
+
+    const contextData = this.buildContext(question, hits);
+    const prompt = this.buildWmsPrompt(contextData, question);
+
+    const sources = hits.map(h => ({
+      title: String(h.metadata?.title || "Documento"),
+      category: String(h.metadata?.category || "Geral")
+    }));
+
+    // Send sources first
+    onToken({ sources, context: contextData });
+
+    await this.llm.generateStream(prompt, onToken);
   }
 
   async search(query: string, topK = 4): Promise<SearchResult[]> {

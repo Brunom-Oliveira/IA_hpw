@@ -16,9 +16,13 @@ export default function UploadAudio() {
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [activeAction, setActiveAction] = useState(null);
+
+  const isBusy = isTranscribing || isGenerating || isSaving;
 
   async function handleTranscribe(event) {
     event.preventDefault();
+    setActiveAction("transcribe");
     setIsTranscribing(true);
     setError("");
     setResult(null);
@@ -71,6 +75,7 @@ export default function UploadAudio() {
     } finally {
       setIsTranscribing(false);
       setIsGenerating(false);
+      setActiveAction(null);
     }
   }
 
@@ -79,6 +84,7 @@ export default function UploadAudio() {
     const confirmed = window.confirm("Deseja salvar o texto atual na base de conhecimento?");
     if (!confirmed) return;
 
+    setActiveAction("saveText");
     setIsSaving(true);
     setError("");
     setResult(null);
@@ -94,6 +100,7 @@ export default function UploadAudio() {
       setError(err?.response?.data?.error || "Falha ao estruturar transcricao");
     } finally {
       setIsSaving(false);
+      setActiveAction(null);
     }
   }
 
@@ -104,9 +111,13 @@ export default function UploadAudio() {
     }
 
     let shouldSave = Boolean(saveToKnowledgeFlag);
+    setActiveAction(shouldSave ? "generateAndSave" : "generateOnly");
     if (shouldSave) {
       const confirmed = window.confirm("Deseja salvar esta versao na base de conhecimento?");
-      if (!confirmed) return;
+      if (!confirmed) {
+        setActiveAction(null);
+        return;
+      }
     }
 
     setIsGenerating(true);
@@ -130,6 +141,7 @@ export default function UploadAudio() {
       setError(err?.response?.data?.error || err?.message || "Falha ao gerar resumo e versao para base");
     } finally {
       setIsGenerating(false);
+      setActiveAction(null);
     }
   }
 
@@ -172,16 +184,16 @@ export default function UploadAudio() {
         </label>
 
         <div className="full action-row">
-          <button type="submit" disabled={isTranscribing || !audioFile}>
-            {isTranscribing ? "Transcrevendo..." : "Transcrever com Whisper"}
+          <button type="submit" disabled={isBusy || !audioFile}>
+            {activeAction === "transcribe" ? "Transcrevendo..." : "Transcrever com Whisper"}
           </button>
           <button
             type="button"
             className="secondary"
-            disabled={isSaving || !transcription.trim()}
+            disabled={isBusy || !transcription.trim()}
             onClick={handleSaveText}
           >
-            {isSaving ? "Salvando..." : "Salvar texto na base"}
+            {activeAction === "saveText" ? "Salvando..." : "Salvar texto na base"}
           </button>
         </div>
 
@@ -200,21 +212,23 @@ export default function UploadAudio() {
           <button
             type="button"
             className="secondary"
-            disabled={isGenerating || !transcription.trim()}
+            disabled={isBusy || !transcription.trim()}
             onClick={() => handleGenerateFromText(false)}
           >
-            {isGenerating ? "Gerando..." : "Gerar resumo + versao base (sem salvar)"}
+            {activeAction === "generateOnly"
+              ? "Gerando..."
+              : "Gerar resumo + versao base (sem salvar)"}
           </button>
           <button
             type="button"
-            disabled={isGenerating || !transcription.trim()}
+            disabled={isBusy || !transcription.trim()}
             onClick={() => handleGenerateFromText(true)}
           >
-            {isGenerating ? "Gerando..." : "Gerar e salvar na base"}
+            {activeAction === "generateAndSave" ? "Gerando..." : "Gerar e salvar na base"}
           </button>
         </div>
-        <button type="submit" disabled={isSaving || !transcription.trim()}>
-          {isSaving ? "Salvando..." : "Estruturar e Salvar"}
+        <button type="submit" disabled={isBusy || !transcription.trim()}>
+          {activeAction === "saveText" ? "Salvando..." : "Estruturar e Salvar"}
         </button>
       </form>
 

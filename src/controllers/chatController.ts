@@ -5,11 +5,27 @@ export class ChatController {
   constructor(private readonly ragService: RagService) {}
 
   ask = async (req: Request, res: Response): Promise<void> => {
-    const message = req.body?.message as string;
-    const topK = req.body?.topK ? Number(req.body.topK) : undefined;
+    const { message, topK, stream } = req.body;
 
     if (!message || typeof message !== "string") {
       res.status(400).json({ error: "message obrigatoria" });
+      return;
+    }
+
+    if (stream) {
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+
+      try {
+        await this.ragService.askStream(message, (chunk) => {
+          res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+        }, topK);
+        res.end();
+      } catch (error: any) {
+        res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
+        res.end();
+      }
       return;
     }
 

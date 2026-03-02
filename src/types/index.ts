@@ -28,9 +28,17 @@ export interface RagResponse {
   context: string;
   matches: number;
   usage: LlmUsage;
+  sources?: Array<{ title: string; category: string }>;
+}
+
+export interface LlmStreamChunk {
+  content: string;
+  done: boolean;
+  usage?: LlmUsage;
 }
 
 export interface LlmPort {
   generate(prompt: string, options?: { temperature?: number }): Promise<{ response: string; usage: LlmUsage }>;
+  generateStream(prompt: string, onToken: (chunk: LlmStreamChunk) => void, options?: { temperature?: number }): Promise<void>;
 }
 
