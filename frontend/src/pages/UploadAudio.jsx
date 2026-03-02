@@ -13,11 +13,13 @@ export default function UploadAudio() {
   const [knowledgePreview, setKnowledgePreview] = useState(null);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   async function handleTranscribe(event) {
     event.preventDefault();
-    setLoading(true);
+    setIsTranscribing(true);
     setError("");
     setResult(null);
     setTranscriptionResult(null);
@@ -49,21 +51,26 @@ export default function UploadAudio() {
         ? window.confirm("Deseja salvar esta transcricao na base de conhecimento agora?")
         : false;
 
+      setIsGenerating(true);
       const autoResponse = await api.post("/knowledge/auto-audio", {
         transcription: text,
         system,
         module,
         save_to_knowledge: shouldSave,
+      }, {
+        timeout: Number(import.meta.env.VITE_AUDIO_AUTO_TIMEOUT_MS || 180000),
       });
       const payload = autoResponse.data || {};
       setResult(payload);
       setMantisSummary((payload.mantis && payload.mantis.summary) || "");
       setMantisDescription((payload.mantis && payload.mantis.description) || "");
       setKnowledgePreview(payload.knowledge_item || null);
+      setIsGenerating(false);
     } catch (err) {
       setError(err?.response?.data?.error || err?.message || "Falha ao transcrever audio");
     } finally {
-      setLoading(false);
+      setIsTranscribing(false);
+      setIsGenerating(false);
     }
   }
 
@@ -72,7 +79,7 @@ export default function UploadAudio() {
     const confirmed = window.confirm("Deseja salvar o texto atual na base de conhecimento?");
     if (!confirmed) return;
 
-    setLoading(true);
+    setIsSaving(true);
     setError("");
     setResult(null);
 
@@ -86,7 +93,7 @@ export default function UploadAudio() {
     } catch (err) {
       setError(err?.response?.data?.error || "Falha ao estruturar transcricao");
     } finally {
-      setLoading(false);
+      setIsSaving(false);
     }
   }
 
@@ -102,7 +109,7 @@ export default function UploadAudio() {
       if (!confirmed) return;
     }
 
-    setLoading(true);
+    setIsGenerating(true);
     setError("");
     setResult(null);
     try {
@@ -111,6 +118,8 @@ export default function UploadAudio() {
         system,
         module,
         save_to_knowledge: shouldSave,
+      }, {
+        timeout: Number(import.meta.env.VITE_AUDIO_AUTO_TIMEOUT_MS || 180000),
       });
       const payload = autoResponse.data || {};
       setResult(payload);
@@ -120,7 +129,7 @@ export default function UploadAudio() {
     } catch (err) {
       setError(err?.response?.data?.error || err?.message || "Falha ao gerar resumo e versao para base");
     } finally {
-      setLoading(false);
+      setIsGenerating(false);
     }
   }
 
@@ -163,16 +172,16 @@ export default function UploadAudio() {
         </label>
 
         <div className="full action-row">
-          <button type="submit" disabled={loading || !audioFile}>
-            {loading ? "Processando..." : "Transcrever com Whisper"}
+          <button type="submit" disabled={isTranscribing || !audioFile}>
+            {isTranscribing ? "Transcrevendo..." : "Transcrever com Whisper"}
           </button>
           <button
             type="button"
             className="secondary"
-            disabled={loading || !transcription.trim()}
+            disabled={isSaving || !transcription.trim()}
             onClick={handleSaveText}
           >
-            {loading ? "Processando..." : "Salvar texto na base"}
+            {isSaving ? "Salvando..." : "Salvar texto na base"}
           </button>
         </div>
 
@@ -191,21 +200,21 @@ export default function UploadAudio() {
           <button
             type="button"
             className="secondary"
-            disabled={loading || !transcription.trim()}
+            disabled={isGenerating || !transcription.trim()}
             onClick={() => handleGenerateFromText(false)}
           >
-            {loading ? "Processando..." : "Gerar resumo + versao base (sem salvar)"}
+            {isGenerating ? "Gerando..." : "Gerar resumo + versao base (sem salvar)"}
           </button>
           <button
             type="button"
-            disabled={loading || !transcription.trim()}
+            disabled={isGenerating || !transcription.trim()}
             onClick={() => handleGenerateFromText(true)}
           >
-            {loading ? "Processando..." : "Gerar e salvar na base"}
+            {isGenerating ? "Gerando..." : "Gerar e salvar na base"}
           </button>
         </div>
-        <button type="submit" disabled={loading || !transcription.trim()}>
-          {loading ? "Processando..." : "Estruturar e Salvar"}
+        <button type="submit" disabled={isSaving || !transcription.trim()}>
+          {isSaving ? "Salvando..." : "Estruturar e Salvar"}
         </button>
       </form>
 
