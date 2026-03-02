@@ -6,8 +6,11 @@ export default function UploadAudio() {
   const [transcription, setTranscription] = useState("");
   const [system, setSystem] = useState("");
   const [module, setModule] = useState("");
-  const [saveToKnowledge, setSaveToKnowledge] = useState(true);
+  const [saveToKnowledge, setSaveToKnowledge] = useState(false);
   const [transcriptionResult, setTranscriptionResult] = useState(null);
+  const [mantisSummary, setMantisSummary] = useState("");
+  const [mantisDescription, setMantisDescription] = useState("");
+  const [knowledgePreview, setKnowledgePreview] = useState(null);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -18,6 +21,9 @@ export default function UploadAudio() {
     setError("");
     setResult(null);
     setTranscriptionResult(null);
+    setMantisSummary("");
+    setMantisDescription("");
+    setKnowledgePreview(null);
 
     try {
       if (!audioFile) {
@@ -39,15 +45,21 @@ export default function UploadAudio() {
 
       setTranscription(text);
       setTranscriptionResult(response.data);
+      const shouldSave = saveToKnowledge
+        ? window.confirm("Deseja salvar esta transcricao na base de conhecimento agora?")
+        : false;
 
-      if (saveToKnowledge) {
-        const saveResponse = await api.post("/knowledge/upload-audio", {
-          transcription: text,
-          system,
-          module,
-        });
-        setResult(saveResponse.data);
-      }
+      const autoResponse = await api.post("/knowledge/auto-audio", {
+        transcription: text,
+        system,
+        module,
+        save_to_knowledge: shouldSave,
+      });
+      const payload = autoResponse.data || {};
+      setResult(payload);
+      setMantisSummary((payload.mantis && payload.mantis.summary) || "");
+      setMantisDescription((payload.mantis && payload.mantis.description) || "");
+      setKnowledgePreview(payload.knowledge_item || null);
     } catch (err) {
       setError(err?.response?.data?.error || err?.message || "Falha ao transcrever audio");
     } finally {
@@ -57,6 +69,9 @@ export default function UploadAudio() {
 
   async function handleSaveText(event) {
     event.preventDefault();
+    const confirmed = window.confirm("Deseja salvar o texto atual na base de conhecimento?");
+    if (!confirmed) return;
+
     setLoading(true);
     setError("");
     setResult(null);
@@ -70,6 +85,40 @@ export default function UploadAudio() {
       setResult(response.data);
     } catch (err) {
       setError(err?.response?.data?.error || "Falha ao estruturar transcricao");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleGenerateFromText(saveToKnowledgeFlag = false) {
+    if (!transcription.trim()) {
+      setError("Informe uma transcricao para gerar o resumo e a versao de base.");
+      return;
+    }
+
+    let shouldSave = Boolean(saveToKnowledgeFlag);
+    if (shouldSave) {
+      const confirmed = window.confirm("Deseja salvar esta versao na base de conhecimento?");
+      if (!confirmed) return;
+    }
+
+    setLoading(true);
+    setError("");
+    setResult(null);
+    try {
+      const autoResponse = await api.post("/knowledge/auto-audio", {
+        transcription,
+        system,
+        module,
+        save_to_knowledge: shouldSave,
+      });
+      const payload = autoResponse.data || {};
+      setResult(payload);
+      setMantisSummary((payload.mantis && payload.mantis.summary) || "");
+      setMantisDescription((payload.mantis && payload.mantis.description) || "");
+      setKnowledgePreview(payload.knowledge_item || null);
+    } catch (err) {
+      setError(err?.response?.data?.error || err?.message || "Falha ao gerar resumo e versao para base");
     } finally {
       setLoading(false);
     }
@@ -138,6 +187,23 @@ export default function UploadAudio() {
           <textarea rows={12} value={transcription} onChange={(e) => setTranscription(e.target.value)} />
           <span className="stat-label">Voce pode editar o texto antes de salvar.</span>
         </label>
+        <div className="full action-row">
+          <button
+            type="button"
+            className="secondary"
+            disabled={loading || !transcription.trim()}
+            onClick={() => handleGenerateFromText(false)}
+          >
+            {loading ? "Processando..." : "Gerar resumo + versao base (sem salvar)"}
+          </button>
+          <button
+            type="button"
+            disabled={loading || !transcription.trim()}
+            onClick={() => handleGenerateFromText(true)}
+          >
+            {loading ? "Processando..." : "Gerar e salvar na base"}
+          </button>
+        </div>
         <button type="submit" disabled={loading || !transcription.trim()}>
           {loading ? "Processando..." : "Estruturar e Salvar"}
         </button>
@@ -154,8 +220,29 @@ export default function UploadAudio() {
 
       {result && (
         <div className="result-box">
-          <h3>Item indexado</h3>
+          <h3>Resultado automatico</h3>
           <pre>{JSON.stringify(result, null, 2)}</pre>
+        </div>
+      )}
+
+      {(mantisSummary || mantisDescription) && (
+        <div className="result-box">
+          <h3>Resumo para MantisBT</h3>
+          <label>
+            Summary
+            <textarea rows={2} value={mantisSummary} readOnly />
+          </label>
+          <label>
+            Description
+            <textarea rows={8} value={mantisDescription} readOnly />
+          </label>
+        </div>
+      )}
+
+      {knowledgePreview && (
+        <div className="result-box">
+          <h3>Preview para base de conhecimento</h3>
+          <pre>{JSON.stringify(knowledgePreview, null, 2)}</pre>
         </div>
       )}
     </section>

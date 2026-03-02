@@ -37,6 +37,29 @@ router.post("/upload-audio", async (req, res) => {
   }
 });
 
+router.post("/auto-audio", async (req, res) => {
+  try {
+    const { transcription, system, module, save_to_knowledge } = req.body || {};
+    const result = await knowledgeService.autoProcessAudioTranscription(
+      transcription,
+      { system, module },
+      { save_to_knowledge }
+    );
+
+    return res.status(200).json({
+      message: result.saved
+        ? "Transcricao processada e salva automaticamente"
+        : "Transcricao processada automaticamente",
+      ...result,
+    });
+  } catch (error) {
+    console.error("[knowledge][auto-audio] Falha:", error.message);
+    return res.status(error.statusCode || 500).json({
+      error: error.message || "Falha ao processar transcricao automatica",
+    });
+  }
+});
+
 router.post("/upload-sql", upload.single("file"), async (req, res) => {
   try {
     if (!req.file) {

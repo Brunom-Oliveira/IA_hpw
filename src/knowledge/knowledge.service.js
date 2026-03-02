@@ -70,6 +70,33 @@ class KnowledgeService {
     return this.ingestManual(structured);
   }
 
+  async autoProcessAudioTranscription(transcription, defaults = {}, options = {}) {
+    if (!transcription || typeof transcription !== "string") {
+      const error = new Error("transcription obrigatoria");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const parsed = await this.extractAudioTicketAndKnowledge(transcription, defaults);
+    const shouldSave = Boolean(options.save_to_knowledge);
+
+    if (!shouldSave) {
+      return {
+        saved: false,
+        mantis: parsed.mantis,
+        knowledge_item: parsed.knowledge_item,
+      };
+    }
+
+    const saved = await this.ingestManual(parsed.knowledge_item);
+    return {
+      saved: true,
+      mantis: parsed.mantis,
+      knowledge_item: parsed.knowledge_item,
+      index_result: saved,
+    };
+  }
+
   async ingestSqlContent(sqlText, sourceName = "schema.sql") {
     if (!sqlText || typeof sqlText !== "string") {
       const error = new Error("Conteudo SQL obrigatorio");
@@ -237,6 +264,103 @@ class KnowledgeService {
     });
   }
 
+  async extractAudioTicketAndKnowledge(transcription, defaults = {}) {
+    const prompt = [
+      "Voce e um normalizador tecnico para atendimento de suporte.",
+      "Retorne JSON valido com as chaves:",
+      "mantis_summary, mantis_description, knowledge_item.",
+      "knowledge_item deve conter:",
+      "category, system, module, title, problem, symptoms, cause, solution, tables_related, tags.",
+      "Use category=ticket quando for solicitacao operacional/atendimento.",
+      "Use category=audio_case quando nao for ticket de suporte.",
+      "mantis_summary deve ter no maximo 120 caracteres.",
+      "mantis_description deve ser objetivo e pronto para copiar no MantisBT.",
+      "Retorne somente JSON, sem markdown.",
+      "",
+      `Transcricao: ${transcription}`,
+    ].join("\n");
+
+    const response = await axios.post(`${OLLAMA_BASE_URL}/api/generate`, {
+      model: CHAT_MODEL,
+      prompt,
+      stream: false,
+    });
+
+    const raw = response.data && response.data.response ? response.data.response : "{}";
+    const parsed = this.tryParseJson(raw);
+
+    const knowledgeItem = this.transformer.normalizeInput({
+      ...(parsed.knowledge_item || {}),
+      category:
+        (parsed.knowledge_item && parsed.knowledge_item.category) ||
+        parsed.category ||
+        "ticket",
+      system:
+        defaults.system ||
+        (parsed.knowledge_item && parsed.knowledge_item.system) ||
+        parsed.system ||
+        "Nao informado",
+      module:
+        defaults.module ||
+        (parsed.knowledge_item && parsed.knowledge_item.module) ||
+        parsed.module ||
+        "Nao informado",
+      title:
+        (parsed.knowledge_item && parsed.knowledge_item.title) ||
+        parsed.title ||
+        "Caso derivado de audio",
+      problem:
+        (parsed.knowledge_item && parsed.knowledge_item.problem) ||
+        parsed.problem ||
+        transcription,
+      symptoms:
+        (parsed.knowledge_item && parsed.knowledge_item.symptoms) ||
+        parsed.symptoms ||
+        [],
+      cause:
+        (parsed.knowledge_item && parsed.knowledge_item.cause) ||
+        parsed.cause ||
+        "",
+      solution:
+        (parsed.knowledge_item && parsed.knowledge_item.solution) ||
+        parsed.solution ||
+        "",
+      tables_related:
+        (parsed.knowledge_item && parsed.knowledge_item.tables_related) ||
+        parsed.tables_related ||
+        [],
+      tags:
+        (parsed.knowledge_item && parsed.knowledge_item.tags) ||
+        parsed.tags ||
+        ["ticket", "audio"],
+    });
+
+    const mantisSummary = this.safeLimit(
+      parsed.mantis_summary || knowledgeItem.title || "Solicitacao derivada de audio",
+      120
+    );
+    const mantisDescription = String(
+      parsed.mantis_description ||
+        [
+          `Resumo: ${mantisSummary}`,
+          "",
+          "Transcricao revisada:",
+          transcription,
+          "",
+          `Causa: ${knowledgeItem.cause || "Nao informado"}`,
+          `Solucao/encaminhamento: ${knowledgeItem.solution || "Nao informado"}`,
+        ].join("\n")
+    ).trim();
+
+    return {
+      mantis: {
+        summary: mantisSummary,
+        description: mantisDescription,
+      },
+      knowledge_item: knowledgeItem,
+    };
+  }
+
   async listItems(category) {
     await this.ensureCollection();
     const response = await axios.post(`${QDRANT_URL}/collections/${COLLECTION_NAME}/points/scroll`, {
@@ -303,6 +427,13 @@ class KnowledgeService {
 
   generateId(seed) {
     return crypto.randomUUID();
+  }
+
+  safeLimit(value, max) {
+    const text = String(value || "").trim();
+    if (!text) return "";
+    if (text.length <= max) return text;
+    return `${text.slice(0, Math.max(0, max - 3)).trim()}...`;
   }
 }
 

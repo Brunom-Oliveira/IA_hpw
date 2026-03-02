@@ -23,32 +23,30 @@ export default function App() {
   return (
     <div className="layout">
       <aside className="sidebar">
-        <img
-          src="/logo-harpia.png"
-          alt="Harpia Vision"
-          className="sidebar-logo"
-        />
+        <img src="/logo-harpia.png" alt="Harpia Vision" className="sidebar-logo" />
         <h1>Harpia Vision</h1>
         <p className="sidebar-tagline">Pergunte. Entenda. Execute.</p>
+
         <nav>
-          <Link 
-            to="/chat" 
-            className={location.pathname === "/chat" ? "active" : ""}
-          >
-            💬 Perguntas
+          <Link to="/chat" className={location.pathname === "/chat" ? "active" : ""}>
+            Perguntas
           </Link>
-          <Link 
-            to="/settings" 
-            className={location.pathname === "/settings" ? "active" : ""}
+          <Link
+            to="/upload-audio"
+            className={location.pathname === "/upload-audio" ? "active" : ""}
           >
-            ⚙️ Configuração
+            Transcricao e Resumo
+          </Link>
+          <Link to="/settings" className={location.pathname === "/settings" ? "active" : ""}>
+            Configuracao
           </Link>
         </nav>
 
         <button className="theme-toggle" onClick={toggleTheme}>
-          {theme === "light" ? "🌙 Modo Escuro" : "☀️ Modo Claro"}
+          {theme === "light" ? "Modo Escuro" : "Modo Claro"}
         </button>
       </aside>
+
       <main className="content">
         <Routes>
           <Route path="/" element={<Navigate to="/chat" replace />} />
