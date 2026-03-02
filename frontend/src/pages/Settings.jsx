@@ -23,7 +23,7 @@ export default function Settings() {
   return (
     <section>
       <header className="page-header">
-        <h2>Configuracao</h2>
+        <h2>Configuração</h2>
       </header>
 
       <div className="settings-grid">
