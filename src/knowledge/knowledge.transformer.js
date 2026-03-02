@@ -1,4 +1,9 @@
 class KnowledgeTransformer {
+  constructor() {
+    this.maxSchemaColumns = Number(process.env.KNOWLEDGE_SCHEMA_MAX_COLUMNS || 28);
+    this.maxSchemaRelations = Number(process.env.KNOWLEDGE_SCHEMA_MAX_RELATIONS || 10);
+  }
+
   normalizeInput(input) {
     const source = input || {};
     return {
@@ -49,6 +54,20 @@ class KnowledgeTransformer {
 
   tableToKnowledgeDocument(tableDef, sourceName) {
     const fkTables = Array.from(new Set((tableDef.foreignKeys || []).map((fk) => fk.referencedTable)));
+    const columns = Array.isArray(tableDef.columns) ? tableDef.columns : [];
+    const limitedColumns = columns.slice(0, this.maxSchemaColumns);
+    const extraColumns = Math.max(0, columns.length - limitedColumns.length);
+    const fkList = Array.isArray(tableDef.foreignKeys) ? tableDef.foreignKeys : [];
+    const limitedFks = fkList.slice(0, this.maxSchemaRelations);
+    const extraFks = Math.max(0, fkList.length - limitedFks.length);
+    const checkConstraints = Array.isArray(tableDef.check_constraints) ? tableDef.check_constraints : [];
+    const topChecks = checkConstraints
+      .slice(0, 8)
+      .map((constraint) => (constraint && constraint.expression ? constraint.expression : ""))
+      .filter(Boolean);
+    const checkSummary = topChecks.length
+      ? `Checks: ${topChecks.join(" | ")}`
+      : "Checks nao identificados.";
 
     return {
       category: "schema",
@@ -56,15 +75,18 @@ class KnowledgeTransformer {
       module: "schema",
       title: `Estrutura da tabela ${tableDef.table}`,
       problem: `Documentacao tecnica da estrutura da tabela ${tableDef.table}.`,
-      symptoms: (tableDef.columns || []).map((column) => `${column.name} (${column.type})`),
+      symptoms: [
+        ...limitedColumns.map((column) => `${column.name} (${column.type})`),
+        ...(extraColumns > 0 ? [`... +${extraColumns} colunas omitidas para compactacao`] : []),
+      ],
       cause: (tableDef.primaryKey || []).length
         ? `Chave primaria definida em: ${(tableDef.primaryKey || []).join(", ")}`
         : "Chave primaria nao identificada.",
-      solution: (tableDef.foreignKeys || []).length
-        ? `Relacionamentos: ${(tableDef.foreignKeys || [])
+      solution: fkList.length
+        ? `Relacionamentos: ${limitedFks
             .map((fk) => `${fk.field} -> ${fk.referencedTable}`)
-            .join("; ")}`
-        : "Sem relacionamentos de chave estrangeira identificados.",
+            .join("; ")}${extraFks > 0 ? `; ... +${extraFks} relacionamentos omitidos` : ""}. ${checkSummary}`
+        : `Sem relacionamentos de chave estrangeira identificados. ${checkSummary}`,
       tables_related: fkTables,
       tags: ["schema", "ddl", tableDef.table],
     };
@@ -90,4 +112,3 @@ class KnowledgeTransformer {
 }
 
 module.exports = { KnowledgeTransformer };
-

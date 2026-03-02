@@ -27,11 +27,11 @@ export default function Settings() {
       </header>
 
       <div className="settings-grid">
-        <article className="settings-card">
-          <h3>RAG</h3>
+        <article className="card">
+          <h3>Preferências da IA</h3>
           <form onSubmit={saveSettings} className="settings-form">
             <label>
-              Top K padrao (chat)
+              Limite de Precisão (Top K)
               <input
                 type="number"
                 min="1"
@@ -42,19 +42,20 @@ export default function Settings() {
                   setMessage("");
                 }}
               />
+              <span className="stat-label">Define quantos trechos de documento a inteligência deve ler.</span>
             </label>
-            <button type="submit">Salvar</button>
+            <button type="submit">Salvar Definições</button>
           </form>
-          {message && <p className="success">{message}</p>}
+          {message && <p className="success" style={{marginTop: '1rem'}}>{message}</p>}
         </article>
 
-        <article className="settings-card">
-          <h3>Administracao</h3>
+        <article className="card">
+          <h3>Central de Administração</h3>
           <div className="settings-links">
-            <Link to="/dashboard">Dashboard</Link>
-            <Link to="/add">Novo Conhecimento</Link>
-            <Link to="/upload-audio">Audio Transcription</Link>
-            <Link to="/upload-sql">Schema SQL</Link>
+            <Link to="/dashboard">📊 Dashboard Geral</Link>
+            <Link to="/add">📄 Novo Conhecimento</Link>
+            <Link to="/upload-audio">🎙️ Transcrição Audio</Link>
+            <Link to="/upload-sql">🗂️ Mapear Schema SQL</Link>
           </div>
         </article>
       </div>

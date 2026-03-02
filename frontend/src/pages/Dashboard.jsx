@@ -40,60 +40,65 @@ export default function Dashboard() {
         <button onClick={fetchData}>Atualizar</button>
       </header>
 
-      <div className="cards">
-        <article className="card">
-          <h3>Total de itens</h3>
+      <div className="cards stats-row">
+        <article className="card primary-stat">
+          <h3>Total de Itens</h3>
           <strong>{stats.total || 0}</strong>
+          <span className="stat-label">Registros na base</span>
         </article>
         {Object.entries(stats.by_category || {}).map(([key, value]) => (
-          <article className="card" key={key}>
-            <h3>{key}</h3>
+          <article className="card category-stat" key={key}>
+            <h3>{key.replace('_', ' ')}</h3>
             <strong>{value}</strong>
+            <span className="stat-label">Documentos</span>
           </article>
         ))}
       </div>
 
-      <div className="filter-row">
-        <label htmlFor="category">Filtro por categoria</label>
-        <select id="category" value={category} onChange={(e) => setCategory(e.target.value)}>
-          {categories.map((option) => (
-            <option key={option || "all"} value={option}>
-              {option || "todas"}
-            </option>
-          ))}
-        </select>
+      <div className="filter-panel">
+        <div className="filter-row">
+          <label htmlFor="category">Filtrar Categoria</label>
+          <select id="category" value={category} onChange={(e) => setCategory(e.target.value)}>
+            {categories.map((option) => (
+              <option key={option || "all"} value={option}>
+                {option || "Todas as categorias"}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      {loading && <p>Carregando...</p>}
-      {error && <p className="error">{error}</p>}
-
-      <table>
-        <thead>
-          <tr>
-            <th>Categoria</th>
-            <th>Sistema</th>
-            <th>Modulo</th>
-            <th>Titulo</th>
-            <th>Criado em</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredItems.map((item) => (
-            <tr key={item.id}>
-              <td>{item.category}</td>
-              <td>{item.system || "-"}</td>
-              <td>{item.module || "-"}</td>
-              <td>{item.title || "-"}</td>
-              <td>{item.created_at || "-"}</td>
-            </tr>
-          ))}
-          {!filteredItems.length && (
+      {loading && <div className="loading-state">Atualizando indicadores...</div>}
+      
+      <div className="table-container">
+        <table>
+          <thead>
             <tr>
-              <td colSpan={5}>Nenhum item encontrado.</td>
+              <th>Categoria</th>
+              <th>Sistema</th>
+              <th>Módulo</th>
+              <th>Título</th>
+              <th>Data de Criação</th>
             </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {filteredItems.map((item) => (
+              <tr key={item.id}>
+                <td><span className="badge">{item.category}</span></td>
+                <td>{item.system || "-"}</td>
+                <td>{item.module || "-"}</td>
+                <td><strong>{item.title || "-"}</strong></td>
+                <td>{item.created_at ? new Date(item.created_at).toLocaleDateString() : "-"}</td>
+              </tr>
+            ))}
+            {!filteredItems.length && !loading && (
+              <tr>
+                <td colSpan={5} className="empty-row">Nenhum dado encontrado para esta categoria.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }

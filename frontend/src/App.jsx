@@ -11,18 +11,15 @@ export default function App() {
     <div className="layout">
       <aside className="sidebar">
         <img
-          src="/logo-harpia.png"
+          src="/logo.png"
           alt="Harpia Vision"
           className="sidebar-logo"
-          onError={(event) => {
-            event.currentTarget.style.display = "none";
-          }}
         />
         <h1>Harpia Vision</h1>
-        <p className="sidebar-tagline">Pergunte. Entenda. Execute.</p>
+        <p className="sidebar-tagline">Inteligência Logística de Ponta</p>
         <nav>
           <Link to="/chat">Perguntas</Link>
-          <Link to="/settings">Configuracao</Link>
+          <Link to="/settings">Configuração</Link>
         </nav>
       </aside>
       <main className="content">

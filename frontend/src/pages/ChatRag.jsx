@@ -65,55 +65,77 @@ export default function ChatRag() {
   }
 
   return (
-    <section>
+    <section className="chat-view">
       <header className="page-header">
-        <h2>Perguntas RAG</h2>
-        <button onClick={clearChat}>Limpar conversa</button>
+        <h2>Perguntas Assistente</h2>
+        <button onClick={clearChat} className="secondary">Limpar conversa</button>
       </header>
 
-      <div className="chat-box">
-        {!messages.length && <p className="chat-empty">Pergunte sobre os documentos e schemas indexados.</p>}
-        {messages.map((message) => (
-          <article
-            key={message.id}
-            className={`chat-message ${message.role === "assistant" ? "assistant" : "user"}`}
-          >
-            <h4>{message.role === "assistant" ? "Assistente" : "Voce"}</h4>
-            <p>{message.text}</p>
-            {message.role === "assistant" && message.context ? (
-              <details>
-                <summary>Ver contexto usado</summary>
-                <pre>{message.context}</pre>
-              </details>
-            ) : null}
-            {message.role === "assistant" && message.usage ? (
-              <small>
-                tokens: {message.usage.total_tokens ?? "-"} | tempo: {message.usage.execution_time_ms ?? "-"} ms
-              </small>
-            ) : null}
-          </article>
-        ))}
+      <div className="chat-container">
+        <div className="chat-box">
+          {!messages.length && (
+            <div className="chat-empty">
+              <h3>Como posso ajudar hoje?</h3>
+              <p>Pergunte sobre logística, schemas SQL ou manuais do HarpiaWMS.</p>
+            </div>
+          )}
+          {messages.map((message) => (
+            <article
+              key={message.id}
+              className={`chat-message ${message.role === "assistant" ? "assistant" : "user"}`}
+            >
+              <h4>{message.role === "assistant" ? "Harpia AI" : "Você"}</h4>
+              <p>{message.text}</p>
+              
+              {message.role === "assistant" && (
+                <div className="chat-meta">
+                  {message.usage && (
+                    <span>
+                      {message.usage.total_tokens} tokens • {message.usage.execution_time_ms}ms
+                    </span>
+                  )}
+                  {message.context && (
+                    <details>
+                      <summary>Ver Contexto RAG</summary>
+                      <pre className="context-detail">{message.context}</pre>
+                    </details>
+                  )}
+                </div>
+              )}
+            </article>
+          ))}
+          {loading && (
+            <article className="chat-message assistant thinking">
+              <p>Analisando base de conhecimento...</p>
+            </article>
+          )}
+        </div>
+
+        <form className="chat-form" onSubmit={handleAsk}>
+          <div className="chat-input-wrapper">
+            <textarea
+              rows={2}
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              placeholder="Digite sua dúvida técnica..."
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleAsk(e);
+                }
+              }}
+            />
+            <button type="submit" disabled={loading}>
+              {loading ? "..." : "Enviar"}
+            </button>
+          </div>
+          <p className="chat-hint">
+            Top K: <strong>{topK}</strong> • <Link to="/settings">Ajustar nas configurações</Link>
+          </p>
+        </form>
       </div>
 
-      <form className="chat-form" onSubmit={handleAsk}>
-        <p className="chat-meta">
-          Top K atual: <strong>{topK}</strong> · alterar em <Link to="/settings">Configuracao</Link>
-        </p>
-        <label>
-          Pergunta
-          <textarea
-            rows={4}
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            placeholder="Ex.: Quais constraints importantes da tabela MERCADORIA_461?"
-          />
-        </label>
-        <button type="submit" disabled={loading}>
-          {loading ? "Consultando..." : "Perguntar"}
-        </button>
-      </form>
-
-      {error && <p className="error">{error}</p>}
+      {error && <p className="error-toast">{error}</p>}
     </section>
   );
 }
