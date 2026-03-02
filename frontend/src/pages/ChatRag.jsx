@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../api";
 
+const chatTimeoutMs = Number(import.meta.env.VITE_CHAT_TIMEOUT_MS || 420000);
+
 export default function ChatRag() {
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
@@ -30,10 +32,16 @@ export default function ChatRag() {
     setQuestion("");
 
     try {
-      const response = await api.post("/rag/ask", {
-        question: trimmed,
-        topK: Number(topK),
-      });
+      const response = await api.post(
+        "/rag/ask",
+        {
+          question: trimmed,
+          topK: Number(topK),
+        },
+        {
+          timeout: Number.isFinite(chatTimeoutMs) ? chatTimeoutMs : 420000,
+        },
+      );
 
       const data = response.data || {};
       const assistantMessage = {

@@ -1,6 +1,8 @@
 import { useState } from "react";
 import api from "../api";
 
+const sqlUploadTimeoutMs = Number(import.meta.env.VITE_SQL_UPLOAD_TIMEOUT_MS || 420000);
+
 export default function UploadSQL() {
   const [file, setFile] = useState(null);
   const [result, setResult] = useState(null);
@@ -21,9 +23,14 @@ export default function UploadSQL() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const response = await api.post("/knowledge/upload-sql", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const response = await api.post(
+        "/knowledge/upload-sql",
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+          timeout: Number.isFinite(sqlUploadTimeoutMs) ? sqlUploadTimeoutMs : 420000,
+        },
+      );
       setResult(response.data);
     } catch (err) {
       setError(err?.response?.data?.error || "Falha ao processar SQL");
@@ -60,4 +67,3 @@ export default function UploadSQL() {
     </section>
   );
 }
-

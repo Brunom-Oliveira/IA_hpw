@@ -12,6 +12,8 @@ const DISTANCE = process.env.QDRANT_DISTANCE || "Cosine";
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
 const EMBEDDING_MODEL = process.env.EMBEDDING_MODEL || "nomic-embed-text";
 const CHAT_MODEL = process.env.LLM_MODEL || "mistral";
+const OLLAMA_EMBED_TIMEOUT_MS = Number(process.env.OLLAMA_EMBED_TIMEOUT_MS || 120000);
+const OLLAMA_EMBED_RETRIES = Number(process.env.OLLAMA_EMBED_RETRIES || 2);
 
 class KnowledgeService {
   constructor() {
@@ -160,16 +162,45 @@ class KnowledgeService {
   }
 
   async embedText(text) {
-    const response = await axios.post(`${OLLAMA_BASE_URL}/api/embeddings`, {
-      model: EMBEDDING_MODEL,
-      prompt: text,
-    });
+    const maxAttempts = Number.isFinite(OLLAMA_EMBED_RETRIES)
+      ? Math.max(1, Math.round(OLLAMA_EMBED_RETRIES))
+      : 2;
 
-    const embedding = response.data && response.data.embedding;
-    if (!Array.isArray(embedding)) {
-      throw new Error("Embedding invalido retornado pelo Ollama");
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        const response = await axios.post(
+          `${OLLAMA_BASE_URL}/api/embeddings`,
+          {
+            model: EMBEDDING_MODEL,
+            prompt: text,
+            keep_alive: "10m",
+          },
+          {
+            timeout: Number.isFinite(OLLAMA_EMBED_TIMEOUT_MS) ? OLLAMA_EMBED_TIMEOUT_MS : 120000,
+          },
+        );
+
+        const embedding = response.data && response.data.embedding;
+        if (!Array.isArray(embedding)) {
+          throw new Error("Embedding invalido retornado pelo Ollama");
+        }
+        return this.normalizeVector(embedding);
+      } catch (error) {
+        const isRetryable =
+          error.code === "ECONNRESET" ||
+          error.code === "ECONNREFUSED" ||
+          error.code === "ETIMEDOUT" ||
+          /socket hang up/i.test(String(error.message || ""));
+
+        if (attempt < maxAttempts && isRetryable) {
+          await new Promise((resolve) => setTimeout(resolve, 700));
+          continue;
+        }
+
+        console.error("[knowledge][embedding] Falha ao gerar embedding:", error.message);
+        throw error;
+      }
     }
-    return this.normalizeVector(embedding);
   }
 
   async structureByLlm(transcription, defaults = {}) {

@@ -9,6 +9,7 @@ const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
 const CHAT_MODEL = process.env.LLM_MODEL || "mistral";
 const OLLAMA_TIMEOUT_MS = Number(process.env.OLLAMA_TIMEOUT_MS || 480000);
 const RAG_MAX_OUTPUT_TOKENS = Number(process.env.RAG_MAX_OUTPUT_TOKENS || 220);
+const RAG_KEEP_ALIVE = process.env.RAG_KEEP_ALIVE || "5m";
 
 class RagService {
   constructor() {
@@ -52,7 +53,7 @@ ${question}`;
         model: CHAT_MODEL,
         prompt,
         stream: false,
-        keep_alive: "30m",
+        keep_alive: RAG_KEEP_ALIVE,
         options: {
           temperature: 0.1,
           num_predict: Number.isFinite(RAG_MAX_OUTPUT_TOKENS) ? RAG_MAX_OUTPUT_TOKENS : 220,
