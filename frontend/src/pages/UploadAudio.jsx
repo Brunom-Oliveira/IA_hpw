@@ -17,8 +17,28 @@ export default function UploadAudio() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [activeAction, setActiveAction] = useState(null);
+  const [copiedField, setCopiedField] = useState("");
 
   const isBusy = isTranscribing || isGenerating || isSaving;
+  const statusLabel = isTranscribing
+    ? "Transcrevendo"
+    : isGenerating
+      ? "Gerando"
+      : isSaving
+        ? "Salvando"
+        : "Pronto";
+  const statusClass = isBusy ? "busy" : "idle";
+
+  async function copyText(value, field) {
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(""), 1600);
+    } catch (_err) {
+      setError("Nao foi possivel copiar automaticamente.");
+    }
+  }
 
   async function handleTranscribe(event) {
     event.preventDefault();
@@ -146,10 +166,19 @@ export default function UploadAudio() {
   }
 
   return (
-    <section>
-      <h2>Transcricao de Audio (Whisper)</h2>
+    <section className="audio-page">
+      <header className="page-header">
+        <div>
+          <h2>Transcricao de Audio (Whisper)</h2>
+          <p className="page-subtitle">
+            Gere automaticamente transcricao, resumo para MantisBT e versao estruturada para pesquisa.
+          </p>
+        </div>
+        <div className={`status-pill ${statusClass}`}>{statusLabel}</div>
+      </header>
 
-      <form className="form-grid" onSubmit={handleTranscribe}>
+      <form className="form-grid audio-step" onSubmit={handleTranscribe}>
+        <h3 className="full step-title">Etapa 1 - Transcrever audio</h3>
         <label className="full">
           Arquivo de audio
           <input
@@ -202,7 +231,8 @@ export default function UploadAudio() {
         </p>
       </form>
 
-      <form className="form-grid" onSubmit={handleSaveText} style={{ marginTop: "1rem" }}>
+      <form className="form-grid audio-step" onSubmit={handleSaveText} style={{ marginTop: "1rem" }}>
+        <h3 className="full step-title">Etapa 2 - Revisar e gerar saidas</h3>
         <label className="full">
           Transcricao
           <textarea rows={12} value={transcription} onChange={(e) => setTranscription(e.target.value)} />
@@ -228,46 +258,109 @@ export default function UploadAudio() {
           </button>
         </div>
         <button type="submit" disabled={isBusy || !transcription.trim()}>
-          {activeAction === "saveText" ? "Salvando..." : "Estruturar e Salvar"}
+          {activeAction === "saveText" ? "Salvando..." : "Salvar transcricao manual na base"}
         </button>
       </form>
 
       {error && <p className="error">{error}</p>}
 
-      {transcriptionResult && (
-        <div className="result-box">
-          <h3>Transcricao concluida</h3>
-          <pre>{JSON.stringify(transcriptionResult, null, 2)}</pre>
-        </div>
-      )}
+      <div className="result-stack">
+        {transcriptionResult && (
+          <div className="result-box">
+            <div className="result-header">
+              <h3>Transcricao concluida</h3>
+              <span className="badge">Whisper</span>
+            </div>
+            <p className="stat-label">Texto transcrito pronto para revisao e uso nas etapas seguintes.</p>
+            <details>
+              <summary>Ver retorno tecnico</summary>
+              <pre>{JSON.stringify(transcriptionResult, null, 2)}</pre>
+            </details>
+          </div>
+        )}
 
-      {result && (
-        <div className="result-box">
-          <h3>Resultado automatico</h3>
-          <pre>{JSON.stringify(result, null, 2)}</pre>
-        </div>
-      )}
+        {(mantisSummary || mantisDescription) && (
+          <div className="result-box">
+            <div className="result-header">
+              <h3>Resumo para MantisBT</h3>
+              <span className="badge">Pronto para copiar</span>
+            </div>
+            <label>
+              Summary
+              <textarea rows={2} value={mantisSummary} readOnly />
+            </label>
+            <div className="result-actions">
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => copyText(mantisSummary, "summary")}
+              >
+                {copiedField === "summary" ? "Copiado!" : "Copiar Summary"}
+              </button>
+            </div>
+            <label>
+              Description
+              <textarea rows={8} value={mantisDescription} readOnly />
+            </label>
+            <div className="result-actions">
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => copyText(mantisDescription, "description")}
+              >
+                {copiedField === "description" ? "Copiado!" : "Copiar Description"}
+              </button>
+            </div>
+          </div>
+        )}
 
-      {(mantisSummary || mantisDescription) && (
-        <div className="result-box">
-          <h3>Resumo para MantisBT</h3>
-          <label>
-            Summary
-            <textarea rows={2} value={mantisSummary} readOnly />
-          </label>
-          <label>
-            Description
-            <textarea rows={8} value={mantisDescription} readOnly />
-          </label>
-        </div>
-      )}
+        {knowledgePreview && (
+          <div className="result-box">
+            <div className="result-header">
+              <h3>Preview para base de conhecimento</h3>
+              <span className="badge">JSON estruturado</span>
+            </div>
+            <pre>{JSON.stringify(knowledgePreview, null, 2)}</pre>
+            <div className="result-actions">
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => copyText(JSON.stringify(knowledgePreview, null, 2), "knowledge")}
+              >
+                {copiedField === "knowledge" ? "Copiado!" : "Copiar JSON"}
+              </button>
+            </div>
+          </div>
+        )}
 
-      {knowledgePreview && (
-        <div className="result-box">
-          <h3>Preview para base de conhecimento</h3>
-          <pre>{JSON.stringify(knowledgePreview, null, 2)}</pre>
-        </div>
-      )}
+        {result && (
+          <div className="result-box">
+            <div className="result-header">
+              <h3>Resultado da operacao</h3>
+              <span className="badge">{result.saved ? "Salvo" : "Nao salvo"}</span>
+            </div>
+            <details>
+              <summary>Ver detalhes da operacao</summary>
+              <pre>{JSON.stringify(result, null, 2)}</pre>
+            </details>
+            <div className="result-actions">
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => {
+                  setResult(null);
+                  setTranscriptionResult(null);
+                  setMantisSummary("");
+                  setMantisDescription("");
+                  setKnowledgePreview(null);
+                }}
+              >
+                Limpar resultados
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </section>
   );
 }

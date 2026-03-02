@@ -423,6 +423,114 @@ button:disabled {
   min-width: 220px;
 }
 
+.audio-page .page-subtitle {
+  margin-top: 0.35rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.status-pill {
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.45rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-main);
+}
+
+.status-pill.idle {
+  color: var(--success);
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.35);
+}
+
+.status-pill.busy {
+  color: var(--primary);
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.35);
+}
+
+.audio-step {
+  position: relative;
+}
+
+.step-title {
+  font-size: 0.95rem;
+  color: var(--text-main);
+  margin-bottom: -0.25rem;
+}
+
+.result-stack {
+  margin-top: 1rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.result-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-main);
+  border-radius: 1rem;
+  padding: 1rem 1rem 1.1rem;
+}
+
+.result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.result-box h3 {
+  font-size: 1rem;
+  margin-bottom: 0;
+}
+
+.result-box label {
+  display: block;
+  font-weight: 600;
+  margin-top: 0.75rem;
+}
+
+.result-box pre {
+  margin-top: 0.5rem;
+  background: var(--bg-main);
+  border: 1px solid var(--border-main);
+  border-radius: 0.75rem;
+  padding: 0.85rem;
+  font-size: 0.82rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 280px;
+  overflow: auto;
+}
+
+.result-box details {
+  margin-top: 0.65rem;
+}
+
+.result-box summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.82rem;
+}
+
+.result-actions {
+  margin-top: 0.5rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.error {
+  margin-top: 0.85rem;
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--error);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 0.75rem;
+  padding: 0.7rem 0.85rem;
+  font-weight: 600;
+}
+
 input, select {
   padding: 0.75rem 1rem;
   border: 1px solid var(--border-main);
