@@ -402,6 +402,27 @@ button:disabled {
   grid-column: span 2;
 }
 
+.checkbox-row {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 0.75rem !important;
+}
+
+.checkbox-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+}
+
+.action-row {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.action-row button {
+  min-width: 220px;
+}
+
 input, select {
   padding: 0.75rem 1rem;
   border: 1px solid var(--border-main);

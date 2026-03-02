@@ -23,15 +23,15 @@ export default function Settings() {
   return (
     <section>
       <header className="page-header">
-        <h2>Configuração</h2>
+        <h2>Configuracao</h2>
       </header>
 
       <div className="settings-grid">
         <article className="card">
-          <h3>Preferências da IA</h3>
+          <h3>Preferencias da IA</h3>
           <form onSubmit={saveSettings} className="settings-form">
             <label>
-              Limite de Precisão (Top K)
+              Limite de Precisao (Top K)
               <input
                 type="number"
                 min="1"
@@ -42,20 +42,20 @@ export default function Settings() {
                   setMessage("");
                 }}
               />
-              <span className="stat-label">Define quantos trechos de documento a inteligência deve ler.</span>
+              <span className="stat-label">Define quantos trechos de documento a inteligencia deve ler.</span>
             </label>
-            <button type="submit">Salvar Definições</button>
+            <button type="submit">Salvar Definicoes</button>
           </form>
-          {message && <p className="success" style={{marginTop: '1rem'}}>{message}</p>}
+          {message && <p className="success" style={{ marginTop: "1rem" }}>{message}</p>}
         </article>
 
         <article className="card">
-          <h3>Central de Administração</h3>
+          <h3>Central de Administracao</h3>
           <div className="settings-links">
-            <Link to="/dashboard">📊 Dashboard Geral</Link>
-            <Link to="/add">📄 Novo Conhecimento</Link>
-            <Link to="/upload-audio">🎙️ Transcrição Audio</Link>
-            <Link to="/upload-sql">🗂️ Mapear Schema SQL</Link>
+            <Link to="/dashboard">Dashboard Geral</Link>
+            <Link to="/add">Novo Conhecimento</Link>
+            <Link to="/upload-audio">Transcricao de Audio (Whisper)</Link>
+            <Link to="/upload-sql">Mapear Schema SQL</Link>
           </div>
         </article>
       </div>
