@@ -14,6 +14,7 @@ const EMBEDDING_MODEL = process.env.EMBEDDING_MODEL || "nomic-embed-text";
 const CHAT_MODEL = process.env.LLM_MODEL || "mistral";
 const OLLAMA_EMBED_TIMEOUT_MS = Number(process.env.OLLAMA_EMBED_TIMEOUT_MS || 120000);
 const OLLAMA_EMBED_RETRIES = Number(process.env.OLLAMA_EMBED_RETRIES || 2);
+const AUDIO_NORMALIZER_MODEL = process.env.AUDIO_NORMALIZER_MODEL || CHAT_MODEL;
 
 class KnowledgeService {
   constructor() {
@@ -77,12 +78,14 @@ class KnowledgeService {
       throw error;
     }
 
-    const parsed = await this.extractAudioTicketAndKnowledge(transcription, defaults);
+    const normalizedTranscription = await this.normalizeTranscriptionText(transcription);
+    const parsed = await this.extractAudioTicketAndKnowledge(normalizedTranscription, defaults);
     const shouldSave = Boolean(options.save_to_knowledge);
 
     if (!shouldSave) {
       return {
         saved: false,
+        transcription_normalized: normalizedTranscription,
         mantis: parsed.mantis,
         knowledge_item: parsed.knowledge_item,
       };
@@ -91,6 +94,7 @@ class KnowledgeService {
     const saved = await this.ingestManual(parsed.knowledge_item);
     return {
       saved: true,
+      transcription_normalized: normalizedTranscription,
       mantis: parsed.mantis,
       knowledge_item: parsed.knowledge_item,
       index_result: saved,
@@ -266,16 +270,21 @@ class KnowledgeService {
 
   async extractAudioTicketAndKnowledge(transcription, defaults = {}) {
     const prompt = [
-      "Voce e um normalizador tecnico para atendimento de suporte.",
-      "Retorne JSON valido com as chaves:",
-      "mantis_summary, mantis_description, knowledge_item.",
-      "knowledge_item deve conter:",
+      "Voce e um analista de suporte especialista em chamados MantisBT.",
+      "Objetivo: gerar resumo tecnico de alta qualidade a partir de transcricao de audio.",
+      "REGRAS OBRIGATORIAS:",
+      "- Nao invente informacoes nao citadas na transcricao.",
+      "- Se algo nao estiver claro, use 'Nao identificado na transcricao'.",
+      "- Preserve codigos numericos e identificadores citados (ex: 3374, cliente 757).",
+      "- Linguagem objetiva, formal e sem gírias.",
+      "Retorne JSON valido com as chaves: mantis_summary, mantis_description, knowledge_item.",
+      "knowledge_item deve conter exatamente:",
       "category, system, module, title, problem, symptoms, cause, solution, tables_related, tags.",
-      "Use category=ticket quando for solicitacao operacional/atendimento.",
-      "Use category=audio_case quando nao for ticket de suporte.",
-      "mantis_summary deve ter no maximo 120 caracteres.",
-      "mantis_description deve ser objetivo e pronto para copiar no MantisBT.",
-      "Retorne somente JSON, sem markdown.",
+      "Use category='ticket' para atendimento operacional.",
+      "mantis_summary: maximo 120 caracteres e focado no incidente.",
+      "mantis_description: texto pronto para colar no Mantis com blocos curtos:",
+      "Contexto, Evidencias, Causa provavel, Acao/Encaminhamento.",
+      "Retorne somente JSON puro, sem markdown.",
       "",
       `Transcricao: ${transcription}`,
     ].join("\n");
@@ -288,6 +297,9 @@ class KnowledgeService {
 
     const raw = response.data && response.data.response ? response.data.response : "{}";
     const parsed = this.tryParseJson(raw);
+    const codeMatches = Array.from(
+      new Set((String(transcription).match(/\b\d{3,}\b/g) || []).map((v) => v.trim()))
+    );
 
     const knowledgeItem = this.transformer.normalizeInput({
       ...(parsed.knowledge_item || {}),
@@ -332,7 +344,7 @@ class KnowledgeService {
       tags:
         (parsed.knowledge_item && parsed.knowledge_item.tags) ||
         parsed.tags ||
-        ["ticket", "audio"],
+        ["ticket", "audio", ...codeMatches.map((c) => `codigo_${c}`)],
     });
 
     const mantisSummary = this.safeLimit(
@@ -344,11 +356,16 @@ class KnowledgeService {
         [
           `Resumo: ${mantisSummary}`,
           "",
-          "Transcricao revisada:",
-          transcription,
+          "Contexto:",
+          knowledgeItem.problem || "Nao identificado na transcricao",
           "",
-          `Causa: ${knowledgeItem.cause || "Nao informado"}`,
-          `Solucao/encaminhamento: ${knowledgeItem.solution || "Nao informado"}`,
+          "Evidencias:",
+          ...(knowledgeItem.symptoms && knowledgeItem.symptoms.length
+            ? knowledgeItem.symptoms.map((item) => `- ${item}`)
+            : ["- Nao identificado na transcricao"]),
+          "",
+          `Causa provavel: ${knowledgeItem.cause || "Nao identificado na transcricao"}`,
+          `Acao/encaminhamento: ${knowledgeItem.solution || "Nao identificado na transcricao"}`,
         ].join("\n")
     ).trim();
 
@@ -359,6 +376,33 @@ class KnowledgeService {
       },
       knowledge_item: knowledgeItem,
     };
+  }
+
+  async normalizeTranscriptionText(transcription) {
+    const prompt = [
+      "Voce e um revisor de transcricao ASR.",
+      "Reescreva o texto em portugues claro e correto.",
+      "REGRAS:",
+      "- Nao invente informacoes.",
+      "- Preserve codigos, numeros, nomes proprios e termos tecnicos.",
+      "- Se um trecho estiver incompreensivel, mantenha o trecho original.",
+      "- Retorne somente o texto revisado, sem explicacoes.",
+      "",
+      `Transcricao bruta: ${transcription}`,
+    ].join("\n");
+
+    try {
+      const response = await axios.post(`${OLLAMA_BASE_URL}/api/generate`, {
+        model: AUDIO_NORMALIZER_MODEL,
+        prompt,
+        stream: false,
+      });
+      const revised = String(response.data && response.data.response ? response.data.response : "").trim();
+      if (!revised) return String(transcription).trim();
+      return revised;
+    } catch (_error) {
+      return String(transcription).trim();
+    }
   }
 
   async listItems(category) {
