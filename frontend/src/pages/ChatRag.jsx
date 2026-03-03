@@ -71,42 +71,71 @@ export default function ChatRag() {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let accumulatedText = "";
+      let sseBuffer = "";
+
+      const applyEventData = (payloadText) => {
+        let data;
+        try {
+          data = JSON.parse(payloadText);
+        } catch (_err) {
+          return;
+        }
+
+        if (data.error) {
+          setError(String(data.error));
+          return;
+        }
+
+        if (data.sources) {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantId ? { ...m, sources: data.sources, context: data.context || "" } : m
+            )
+          );
+          return;
+        }
+
+        if (data.done) {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantId
+                ? { ...m, usage: data.usage || null, text: accumulatedText || "Sem resposta do modelo." }
+                : m
+            )
+          );
+          return;
+        }
+
+        if (typeof data.content === "string") {
+          accumulatedText += data.content;
+          setMessages((prev) =>
+            prev.map((m) => (m.id === assistantId ? { ...m, text: accumulatedText } : m))
+          );
+        }
+      };
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        sseBuffer += decoder.decode(value || new Uint8Array(), { stream: !done });
 
-        const chunkText = decoder.decode(value);
-        const lines = chunkText.split("\n");
+        const events = sseBuffer.split("\n\n");
+        sseBuffer = events.pop() || "";
 
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            try {
-              const data = JSON.parse(line.replace("data: ", ""));
+        for (const eventBlock of events) {
+          const lines = eventBlock
+            .split("\n")
+            .map((line) => line.trim())
+            .filter(Boolean);
 
-              if (data.sources) {
-                setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === assistantId ? { ...m, sources: data.sources, context: data.context } : m
-                  )
-                );
-              } else if (data.done) {
-                setMessages((prev) =>
-                  prev.map((m) => (m.id === assistantId ? { ...m, usage: data.usage } : m))
-                );
-              } else if (data.content) {
-                accumulatedText += data.content;
-                setMessages((prev) =>
-                  prev.map((m) => (m.id === assistantId ? { ...m, text: accumulatedText } : m))
-                );
-              } else if (data.error) {
-                throw new Error(String(data.error));
-              }
-            } catch (_e) {
-              // ignore partial json chunks
-            }
-          }
+          const dataLines = lines
+            .filter((line) => line.startsWith("data:"))
+            .map((line) => line.replace(/^data:\s?/, ""));
+
+          if (!dataLines.length) continue;
+          applyEventData(dataLines.join("\n"));
         }
+
+        if (done) break;
       }
     } catch (err) {
       setError(err.message || "Falha ao consultar o RAG.");
