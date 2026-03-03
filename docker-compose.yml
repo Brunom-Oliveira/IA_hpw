@@ -13,7 +13,7 @@ services:
       QDRANT_URL: http://qdrant:6333
       OLLAMA_BASE_URL: http://ollama:11434
       EMBEDDING_MODEL: nomic-embed-text:latest
-      LLM_MODEL: mistral
+      LLM_MODEL: mistral:latest
       OLLAMA_TIMEOUT_MS: 180000
       OLLAMA_EMBED_TIMEOUT_MS: 120000
       OLLAMA_EMBED_RETRIES: 2
@@ -96,8 +96,8 @@ services:
       - ollama_data:/root/.ollama
     entrypoint: ["/bin/sh", "-c"]
     command: >
-      "ollama list | grep -q 'mistral' || ollama pull mistral;
-       ollama list | grep -q 'nomic-embed-text' || ollama pull nomic-embed-text"
+      "ollama list | grep -q 'mistral:latest' || ollama pull mistral:latest;
+       ollama list | grep -q 'nomic-embed-text:latest' || ollama pull nomic-embed-text:latest"
 
 volumes:
   qdrant_data:
