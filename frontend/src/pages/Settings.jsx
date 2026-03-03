@@ -55,6 +55,7 @@ export default function Settings() {
             <Link to="/dashboard">Dashboard Geral</Link>
             <Link to="/add">Novo Conhecimento</Link>
             <Link to="/upload-audio">Transcricao de Audio (Whisper)</Link>
+            <Link to="/upload-manual">Upload de Manual (.md/.txt)</Link>
             <Link to="/upload-sql">Mapear Schema SQL</Link>
           </div>
         </article>

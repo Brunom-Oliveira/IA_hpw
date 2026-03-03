@@ -6,6 +6,7 @@ import Settings from "./pages/Settings";
 import AddKnowledge from "./pages/AddKnowledge";
 import UploadAudio from "./pages/UploadAudio";
 import UploadSQL from "./pages/UploadSQL";
+import UploadManual from "./pages/UploadManual";
 
 export default function App() {
   const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
@@ -37,6 +38,12 @@ export default function App() {
           >
             Transcricao e Resumo
           </Link>
+          <Link
+            to="/upload-manual"
+            className={location.pathname === "/upload-manual" ? "active" : ""}
+          >
+            Upload Manual
+          </Link>
           <Link to="/settings" className={location.pathname === "/settings" ? "active" : ""}>
             Configuracao
           </Link>
@@ -55,6 +62,7 @@ export default function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/add" element={<AddKnowledge />} />
           <Route path="/upload-audio" element={<UploadAudio />} />
+          <Route path="/upload-manual" element={<UploadManual />} />
           <Route path="/upload-sql" element={<UploadSQL />} />
         </Routes>
       </main>

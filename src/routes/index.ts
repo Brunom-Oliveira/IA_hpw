@@ -15,6 +15,7 @@ export const createRoutes = (deps: {
   const upload = multer({ dest: "uploads/" });
 
   router.post("/documents", deps.documentController.insertDocuments);
+  router.post("/documents/upload-manual", upload.array("files"), deps.documentController.uploadManual);
   router.post("/search", deps.documentController.search);
   router.post("/classify", deps.classificationController.classify);
   router.post("/chat", deps.chatController.ask);
@@ -23,4 +24,3 @@ export const createRoutes = (deps: {
 
   return router;
 };
-
