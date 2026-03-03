@@ -44,101 +44,50 @@ export default function ChatRag() {
     setQuestion("");
 
     try {
-      const response = await fetch(`${api.defaults.baseURL}/api/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: trimmed,
+      const response = await api.post(
+        "/rag/ask",
+        {
+          question: trimmed,
           topK: Number(topK),
-          stream: true,
-        }),
-        signal: AbortSignal.timeout(chatTimeoutMs),
-      });
+        },
+        {
+          timeout: chatTimeoutMs,
+        }
+      );
 
-      if (!response.ok) {
-        let errorMessage = "Falha na conexao com o servidor.";
-        try {
-          const payload = await response.json();
-          if (payload && payload.error) {
-            errorMessage = String(payload.error);
+      const payload = response?.data || {};
+      const answer = typeof payload.answer === "string" ? payload.answer : "";
+      const context = typeof payload.context === "string" ? payload.context : "";
+      const usageRaw = payload.usage || {};
+      const sources = Array.isArray(payload.sources) ? payload.sources : [];
+
+      const usage = usageRaw
+        ? {
+            total_tokens: usageRaw.total_tokens ?? usageRaw.totalTokens ?? 0,
+            execution_time_ms: usageRaw.execution_time_ms ?? usageRaw.executionTimeMs ?? 0,
           }
-        } catch (_err) {
-          // keep default
-        }
-        throw new Error(errorMessage);
-      }
+        : null;
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let accumulatedText = "";
-      let sseBuffer = "";
-
-      const applyEventData = (payloadText) => {
-        let data;
-        try {
-          data = JSON.parse(payloadText);
-        } catch (_err) {
-          return;
-        }
-
-        if (data.error) {
-          setError(String(data.error));
-          return;
-        }
-
-        if (data.sources) {
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantId ? { ...m, sources: data.sources, context: data.context || "" } : m
-            )
-          );
-          return;
-        }
-
-        if (data.done) {
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantId
-                ? { ...m, usage: data.usage || null, text: accumulatedText || "Sem resposta do modelo." }
-                : m
-            )
-          );
-          return;
-        }
-
-        if (typeof data.content === "string") {
-          accumulatedText += data.content;
-          setMessages((prev) =>
-            prev.map((m) => (m.id === assistantId ? { ...m, text: accumulatedText } : m))
-          );
-        }
-      };
-
-      while (true) {
-        const { done, value } = await reader.read();
-        sseBuffer += decoder.decode(value || new Uint8Array(), { stream: !done });
-
-        const events = sseBuffer.split("\n\n");
-        sseBuffer = events.pop() || "";
-
-        for (const eventBlock of events) {
-          const lines = eventBlock
-            .split("\n")
-            .map((line) => line.trim())
-            .filter(Boolean);
-
-          const dataLines = lines
-            .filter((line) => line.startsWith("data:"))
-            .map((line) => line.replace(/^data:\s?/, ""));
-
-          if (!dataLines.length) continue;
-          applyEventData(dataLines.join("\n"));
-        }
-
-        if (done) break;
-      }
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === assistantId
+            ? {
+                ...m,
+                text: answer || "Sem resposta do modelo.",
+                context,
+                sources,
+                usage,
+              }
+            : m
+        )
+      );
     } catch (err) {
-      setError(err.message || "Falha ao consultar o RAG.");
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === assistantId ? { ...m, text: "Falha ao gerar resposta." } : m
+        )
+      );
+      setError(err?.response?.data?.error || err.message || "Falha ao consultar o RAG.");
     } finally {
       setLoading(false);
     }
