@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import { createRoutes } from "./routes";
-import { ChromaVectorDbService } from "./services/vector-db/chromaVectorDbService";
+import { QdrantVectorDbService } from "./services/vector-db/qdrantVectorDbService";
 import { EmbeddingService } from "./services/llm/embeddingService";
 import { RagService } from "./services/ragService";
 import { LlmService } from "./services/llm/llmService";
@@ -24,7 +24,7 @@ export const buildApp = () => {
   app.use(cors());
   app.use(express.json({ limit: "2mb" }));
 
-  const vectorDb = new ChromaVectorDbService();
+  const vectorDb = new QdrantVectorDbService();
   const embeddingService = new EmbeddingService();
   const llmService = new LlmService();
   const ragService = new RagService(vectorDb, embeddingService, llmService);

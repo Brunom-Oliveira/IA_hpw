@@ -15,6 +15,10 @@ export const env = {
   ollamaBaseUrl: process.env.OLLAMA_BASE_URL ?? "http://localhost:11434",
   llmModel: process.env.LLM_MODEL ?? "llama3.1:8b",
   embeddingModel: process.env.EMBEDDING_MODEL ?? "nomic-embed-text",
+  qdrantUrl: process.env.QDRANT_URL ?? "http://qdrant:6333",
+  qdrantCollection: process.env.QDRANT_COLLECTION ?? "knowledge_base",
+  qdrantVectorSize: toNumber(process.env.QDRANT_VECTOR_SIZE, 768),
+  qdrantDistance: process.env.QDRANT_DISTANCE ?? "Cosine",
   chromaUrl: process.env.CHROMA_URL ?? "http://localhost:8000",
   chromaCollection: process.env.CHROMA_COLLECTION ?? "harpia_docs",
   whisperBinPath: process.env.WHISPER_BIN_PATH ?? "whisper-cli",
@@ -23,4 +27,3 @@ export const env = {
   chunkSize: toNumber(process.env.CHUNK_SIZE, 800),
   chunkOverlap: toNumber(process.env.CHUNK_OVERLAP, 120),
 };
-
