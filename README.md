@@ -1,328 +1,148 @@
-# IA HarpiaWMS Backend
+# IA HarpiaWMS (Containerizado)
 
-Backend Node.js + TypeScript com arquitetura modular para:
-- RAG manual com Qdrant local + Ollama
-- Chatbot com LLM local (Ollama ou llama.cpp server)
-- Classificacao de texto (tickets/historicos)
-- Transcricao de audio com Whisper (whisper.cpp)
+Projeto pronto para subir em qualquer VPS via Docker Compose, com:
+- Backend API (`ia-hpw`) em `:8090`
+- Frontend em `:5173`
+- Qdrant em `:6333`
+- Ollama em `:11434`
+- Whisper.cpp compilado dentro da imagem do backend
 
-## Estrutura de pastas
+## 1. Pré-requisitos
 
-```text
-src/
-  rag/
-    ingest.service.js
-    embedding.service.js
-    search.service.js
-    rag.service.js
-  schema/
-    schema.parser.js
-    schema.transformer.js
-    schema.ingest.service.js
-  controllers/
-  routes/
-    rag.routes.js
-    schema.routes.js
-  services/
-    llm/
-    whisper/
-    vector-db/
-  scripts/
-  utils/
-config/
-docker/
-tests/
-```
+- Docker Engine
+- Docker Compose plugin (`docker compose`)
+- Pasta `models/` com modelo Whisper (recomendado `ggml-medium.bin`)
 
-## Requisitos (Ubuntu VPS 4c/8GB)
-
-- Node.js 20+
-- npm 10+
-- Docker + Docker Compose
-- Ollama instalado (ou endpoint llama.cpp server)
-- whisper.cpp compilado e binario `whisper-cli`
-- Modelo Whisper `.bin` em disco (ex.: `models/ggml-base.bin`)
-
-## Setup
-
-1. Instale dependencias:
+Exemplo:
 
 ```bash
-npm install
+mkdir -p models uploads docs
+# copie seu modelo para:
+# models/ggml-medium.bin
 ```
 
-2. Crie o arquivo `.env`:
+## 2. Subir tudo
 
 ```bash
-cp config/.env.example .env
+docker compose up -d --build
 ```
 
-3. Ajuste as variaveis no `.env`:
-- `OLLAMA_BASE_URL`
-- `LLM_MODEL`
-- `EMBEDDING_MODEL`
-- `QDRANT_URL`
-- `QDRANT_COLLECTION`
-- `QDRANT_VECTOR_SIZE`
-- `SCHEMA_SQL_PATH`
-- `WHISPER_BIN_PATH`
-- `WHISPER_MODEL_PATH`
-
-4. Rode em desenvolvimento:
+Verificar saúde:
 
 ```bash
-npm run dev
+docker compose ps
+curl -sS http://127.0.0.1:8090/api/health
+curl -sS http://127.0.0.1:6333/collections/knowledge_base | head
+curl -sS http://127.0.0.1:11434/api/tags | head
 ```
 
-5. Build e execucao de producao:
+Acesse:
+- Frontend: `http://SEU_IP:5173`
+- Backend: `http://SEU_IP:8090`
+
+## 3. Modelos Ollama
+
+O serviço `ollama-init` já tenta baixar automaticamente:
+- `mistral`
+- `nomic-embed-text`
+
+Também pode rodar manual:
 
 ```bash
-npm run build
-npm start
+docker compose exec ollama ollama pull mistral
+docker compose exec ollama ollama pull nomic-embed-text
 ```
 
-## Docker
+## 4. Variáveis importantes
 
-Subir app + Qdrant:
+Baseado em `config/.env.example`:
+- `PORT=8090`
+- `QDRANT_URL=http://qdrant:6333`
+- `OLLAMA_BASE_URL=http://ollama:11434`
+- `WHISPER_BIN_PATH=/opt/whisper.cpp/build/bin/whisper-cli`
+- `WHISPER_MODEL_PATH=/app/models/ggml-medium.bin`
+
+No Compose essas variáveis já são injetadas no backend.
+
+## 5. Migração para outra VPS (sem dor)
+
+### Backup
 
 ```bash
-docker compose up --build
+# no host atual
+cd /root/IA_hpw
+
+tar -czf backup-ia-hpw-files.tar.gz \
+  docker-compose.yml docker/ src/ frontend/ config/ package*.json tsconfig.json README.md docs/ models/ uploads/
+
+docker run --rm -v harpia_qdrant_data:/data -v $(pwd):/backup alpine \
+  sh -c "cd /data && tar -czf /backup/backup-qdrant.tar.gz ."
+
+docker run --rm -v harpia_ollama_data:/data -v $(pwd):/backup alpine \
+  sh -c "cd /data && tar -czf /backup/backup-ollama.tar.gz ."
 ```
 
-Observacao:
-- O serviÃ§o de LLM local (Ollama/llama.cpp) e Whisper podem rodar fora do compose, na mesma VPS.
-- Se quiser incluir Ollama no compose, adicione um serviÃ§o extra conforme capacidade de RAM da VPS.
-
-## Embeddings e indexacao de documentos
-
-1. Coloque arquivos em `data/documents` (`.txt`, `.md`, `.pdf`).
-2. Rode:
+### Restore
 
 ```bash
-npm run index:docs
+# na nova VPS
+mkdir -p /root/IA_hpw && cd /root/IA_hpw
+# copie os .tar.gz para cá
+
+tar -xzf backup-ia-hpw-files.tar.gz
+
+docker volume create harpia_qdrant_data
+docker volume create harpia_ollama_data
+
+docker run --rm -v harpia_qdrant_data:/data -v $(pwd):/backup alpine \
+  sh -c "cd /data && tar -xzf /backup/backup-qdrant.tar.gz"
+
+docker run --rm -v harpia_ollama_data:/data -v $(pwd):/backup alpine \
+  sh -c "cd /data && tar -xzf /backup/backup-ollama.tar.gz"
+
+docker compose up -d --build
 ```
 
-O script quebra texto em chunks e indexa no vetor DB com embeddings gerados pelo modelo local.
+## 6. Como evitar ficar fora do ar
 
-## Endpoints RAG (Qdrant + Ollama)
-
-Base URL: `http://localhost:3000/rag`
-
-- `POST /upload` (multipart/form-data)
-  - Campo do arquivo: `file` (PDF)
-  - Fluxo: extracao PDF -> chunk 800 chars -> embedding -> upsert no Qdrant
-
-- `POST /ask`
-```json
-{
-  "question": "Qual e a politica de devolucao?"
-}
-```
-Fluxo: embedding da pergunta -> top 5 no Qdrant -> prompt com contexto -> resposta do Ollama.
-
-## Arquitetura de IA (Performance & VPS Optimized)
-
-O sistema foi otimizado para rodar em uma VPS com **4 nÃºcleos e 8GB de RAM**:
-- **Banco Vetorial**: Unificado no **ChromaDB** (leve e integrado ao Node).
-- **LÃ³gica de RAG**: Implementada em TypeScript com **Token Management** ativo.
-- **Janela de Contexto**: Limitada a 4096 tokens (Ollama padrÃ£o) com reserva para respostas.
-- **Provider**: Suporte a Ollama e llama.cpp (server).
-
-### Controle de Tokens e Qualidade
-O `RagService` agora gerencia automaticamente:
-- **Janela DinÃ¢mica**: Reserva espaÃ§o para a resposta do LLM e instruÃ§Ãµes de sistema.
-- **Prompt Especialista**: A IA atua como um **Analista HarpiaWMS**, focando em diagnÃ³sticos tÃ©cnicos e referÃªncias a tabelas SQL.
-- **Recall Inteligente**: O `topK` Ã© ajustado automaticamente com base na complexidade da pergunta.
-
-### Endpoints Principais (API v2)
-
-Base URL: `http://localhost:3000/api`
-
-- `POST /chat`
-  - Envia pergunta e recebe resposta contextualizada do WMS.
-  - Inclui metadados de uso (tokens e tempo de execuÃ§Ã£o).
-- `POST /documents`
-  - Indexa novos manuais ou registros tÃ©cnicos.
-- `POST /transcribe`
-  - TranscriÃ§Ã£o Whisper vinculada ao fluxo de conhecimento.
-
-## Endpoint Schema Ingest (DDL -> conhecimento semantico)
-
-Base URL: `http://localhost:3000/schema`
-
-- `POST /ingest`
-  - LÃª arquivo `./docs/schema.sql`
-  - Extrai `CREATE TABLE`, colunas, PK e FK
-  - Transforma em texto semantico por tabela
-  - Gera embedding via `nomic-embed-text`
-  - Indexa no Qdrant na colecao `schema_documents`
-
-Resposta:
-```json
-{
-  "message": "Schema SQL processado e indexado com sucesso",
-  "indexed_tables": ["clients", "orders"],
-  "total": 2
-}
-```
-
-## Modulo Knowledge (ingestao estruturada)
-
-Arquivos principais:
-- `src/knowledge/knowledge.service.js`
-- `src/knowledge/knowledge.transformer.js`
-- `src/knowledge/knowledge.validator.js`
-- `src/routes/knowledge.routes.js`
-
-Colecao vetorial usada:
-- `knowledge_base` (Qdrant)
-- `size: 768`
-- `distance: Cosine`
-
-### Endpoints
-
-Base URL: `http://localhost:3000/knowledge`
-
-1. `POST /manual`
-```json
-{
-  "category": "documentation",
-  "system": "WMS",
-  "module": "Picking",
-  "title": "Erro de separacao",
-  "problem": "Pedido fica travado",
-  "symptoms": ["status parado", "fila crescente"],
-  "cause": "Job de validacao nao executou",
-  "solution": "Reprocessar fila",
-  "tables_related": ["orders", "order_items"],
-  "tags": ["operacao", "picking"]
-}
-```
-
-2. `POST /upload-audio`
-```json
-{
-  "transcription": "texto da transcricao...",
-  "system": "WMS",
-  "module": "Atendimento"
-}
-```
-
-3. `POST /upload-sql` (multipart/form-data)
-- Campo do arquivo: `file` (`.sql`)
-
-4. `GET /items?category=documentation`
-- Lista itens indexados para dashboard.
-
-5. `GET /stats`
-- Retorna total e contagem por categoria.
-
-### Padrao de texto para embedding
-
-Todos os itens sao normalizados neste formato:
-
-```text
-Tipo: {{category}}
-Sistema: {{system}}
-MÃ³dulo: {{module}}
-
-TÃ­tulo: {{title}}
-
-Problema:
-{{problem}}
-
-Sintomas:
-- {{symptom}}
-
-Causa:
-{{cause}}
-
-SoluÃ§Ã£o:
-{{solution}}
-
-Tabelas Relacionadas:
-- {{table}}
-
-Tags:
-- {{tag}}
-```
-
-## Frontend React (gestao da base)
-
-Estrutura:
-- `frontend/src/pages/Dashboard.jsx`
-- `frontend/src/pages/AddKnowledge.jsx`
-- `frontend/src/pages/UploadAudio.jsx`
-- `frontend/src/pages/UploadSQL.jsx`
-
-Execucao:
+- Use `restart: unless-stopped` (já aplicado)
+- Healthchecks (já aplicados)
+- Atualização com baixo risco:
 
 ```bash
-cd frontend
-cp .env.example .env
-npm install
-npm run dev
+git pull origin main
+docker compose build backend frontend
+docker compose up -d backend frontend
 ```
 
-Paginas:
-- Dashboard com listagem, filtro por categoria e contagem por tipo.
-- Insercao manual estruturada.
-- Upload SQL com retorno de tabelas detectadas.
-- Upload de transcricao de audio para estruturacao + indexacao.
-
-## Endpoints
-
-Base URL: `http://localhost:3000/api`
-
-- `POST /documents`
-```json
-{
-  "documents": [
-    { "text": "Conteudo do documento", "metadata": { "source": "manual.md" } }
-  ]
-}
-```
-
-- `POST /search`
-```json
-{
-  "query": "atraso na entrega",
-  "topK": 4
-}
-```
-
-- `POST /classify`
-```json
-{
-  "text": "Cliente reportou timeout na API",
-  "mode": "rules"
-}
-```
-
-- `POST /chat`
-```json
-{
-  "message": "Qual o status da entrega do pedido 123?",
-  "topK": 4
-}
-```
-
-- `POST /transcribe` (multipart/form-data)
-  - Campo do arquivo: `audio`
-
-## Testes
+- Tenha monitoramento simples:
 
 ```bash
-npm test
+docker compose ps
+docker compose logs --tail=100 backend
 ```
 
-Cobertura atual:
-- Classificacao de texto
-- Fluxo base de busca vetorial
-- Estrutura de chat + contrato de transcricao
+## 7. Troubleshooting rápido
 
-## Manutencao
+- Backend não sobe:
 
-- Servicos externos foram isolados em `src/services/*` para facilitar troca de providers.
-- Controllers validam entrada e mantem regras HTTP separadas da regra de negocio.
-- `RagService` centraliza indexacao e busca de contexto vetorial.
+```bash
+docker compose logs --tail=200 backend
+```
+
+- Erro de transcrição Whisper:
+  - confirme `models/ggml-medium.bin` no host
+  - confirme `WHISPER_MODEL_PATH=/app/models/ggml-medium.bin`
+
+- Chat com erro de vetor (`qdrant`):
+
+```bash
+docker compose logs --tail=200 qdrant backend
+```
+
+- Chat com erro de LLM (`ollama`):
+
+```bash
+docker compose logs --tail=200 ollama backend
+docker compose exec ollama ollama list
+```

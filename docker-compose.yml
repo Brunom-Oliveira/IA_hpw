@@ -1,29 +1,104 @@
 version: "3.9"
 
 services:
-  app:
+  backend:
     build:
       context: .
-      dockerfile: docker/Dockerfile
-    container_name: harpia-app
-    env_file:
-      - .env
+      dockerfile: docker/Dockerfile.backend
+    container_name: harpia-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 8090
+      QDRANT_URL: http://qdrant:6333
+      OLLAMA_BASE_URL: http://ollama:11434
+      EMBEDDING_MODEL: nomic-embed-text:latest
+      LLM_MODEL: mistral
+      OLLAMA_TIMEOUT_MS: 180000
+      OLLAMA_EMBED_TIMEOUT_MS: 120000
+      OLLAMA_EMBED_RETRIES: 2
+      RAG_MAX_OUTPUT_TOKENS: 160
+      RAG_MAX_OUTPUT_TOKENS_LOOKUP: 90
+      RAG_NUM_CTX: 1024
+      RAG_TOPK_DEFAULT: 2
+      RAG_TOPK_MAX: 3
+      RAG_MIN_SCORE: 0.15
+      RAG_CACHE_TTL_MS: 900000
+      RAG_CACHE_MAX_ITEMS: 300
+      RAG_KEEP_ALIVE: 5m
+      WHISPER_BIN_PATH: /opt/whisper.cpp/build/bin/whisper-cli
+      WHISPER_MODEL_PATH: /app/models/ggml-medium.bin
+      WHISPER_LANGUAGE: pt
+      LD_LIBRARY_PATH: /opt/whisper.cpp/build/src:/opt/whisper.cpp/build/ggml/src:/opt/whisper.cpp/build/ggml/src/ggml-cpu
     ports:
-      - "3000:3000"
+      - "8090:8090"
     volumes:
       - ./uploads:/app/uploads
+      - ./docs:/app/docs
+      - ./models:/app/models
     depends_on:
-      - chroma
+      qdrant:
+        condition: service_started
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8090/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
 
-  chroma:
-    image: chromadb/chroma
-    container_name: harpia-chroma
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+      args:
+        VITE_API_URL: /
+    container_name: harpia-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
     ports:
-      - "8000:8000"
+      - "5173:80"
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: harpia-qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
     volumes:
-      - chroma_data:/chroma/data
-    environment:
-      - IS_PERSISTENT=TRUE
+      - qdrant_data:/qdrant/storage
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: harpia-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+
+  ollama-init:
+    image: ollama/ollama:latest
+    container_name: harpia-ollama-init
+    restart: "no"
+    depends_on:
+      ollama:
+        condition: service_healthy
+    volumes:
+      - ollama_data:/root/.ollama
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "ollama list | grep -q 'mistral' || ollama pull mistral;
+       ollama list | grep -q 'nomic-embed-text' || ollama pull nomic-embed-text"
 
 volumes:
-  chroma_data:
+  qdrant_data:
+  ollama_data:
