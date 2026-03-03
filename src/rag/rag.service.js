@@ -11,6 +11,7 @@ const OLLAMA_TIMEOUT_MS = Number(process.env.OLLAMA_TIMEOUT_MS || 480000);
 const RAG_MAX_OUTPUT_TOKENS = Number(process.env.RAG_MAX_OUTPUT_TOKENS || 220);
 const RAG_KEEP_ALIVE = process.env.RAG_KEEP_ALIVE || "5m";
 const RAG_NUM_CTX = Number(process.env.RAG_NUM_CTX || 2048);
+const RAG_MAX_OUTPUT_TOKENS_LOOKUP = Number(process.env.RAG_MAX_OUTPUT_TOKENS_LOOKUP || 120);
 
 class RagService {
   constructor() {
@@ -18,7 +19,27 @@ class RagService {
     this.searchService = new SearchService();
   }
 
-  buildPrompt(context, question) {
+  buildPrompt(context, question, options = {}) {
+    const conciseLookup = Boolean(options.conciseLookup);
+    if (conciseLookup) {
+      return `Sistema:
+Voce e analista tecnico de banco de dados.
+Responda de forma objetiva e curta.
+Use apenas o contexto.
+Se nao houver evidencias, diga que nao encontrou.
+
+Formato obrigatorio da resposta:
+- Tabela: <nome ou "Nao identificado">
+- Coluna(s): <lista ou "Nao identificado">
+- Observacao: <1 frase curta>
+
+Contexto:
+${context}
+
+Pergunta:
+${question}`;
+    }
+
     return `Sistema:
 Voce e especialista tecnico em sistemas corporativos. Responda com objetividade e usando apenas o contexto.
 Se nao houver informacao suficiente, diga explicitamente que nao encontrou na base.
@@ -40,17 +61,19 @@ ${question}`;
         throw error;
       }
 
-      const topK = this.resolveTopK(question, requestedTopK);
+      const conciseLookup = this.isLookupQuestion(question);
+      const topK = this.resolveTopK(question, requestedTopK, conciseLookup);
       const questionEmbedding = await this.embeddingService.generateEmbedding(question);
       const hits = await this.searchService.searchByVector(questionEmbedding, topK);
+      const filteredHits = this.filterHitsForQuestion(hits, question, conciseLookup);
 
       // Contexto eh montado sob budget fixo de tokens para evitar overflow no modelo.
-      const contextData = buildContext(question, hits);
+      const contextData = buildContext(question, filteredHits);
       if (!contextData.context) {
         return {
           answer: "Nao encontrei informacoes suficientes na base para responder com seguranca.",
           context: "",
-          matches: hits.length,
+          matches: filteredHits.length,
           top_k_used: topK,
           context_meta: {
             token_budget: contextData.tokenBudget,
@@ -67,10 +90,14 @@ ${question}`;
         };
       }
 
-      const prompt = this.buildPrompt(contextData.context, question);
+      const prompt = this.buildPrompt(contextData.context, question, { conciseLookup });
 
       const estimatedPromptTokens = assertPromptFitsWindow(prompt);
       // Guard final antes do LLM: bloqueia prompts acima da janela de 4096.
+      const maxOutputTokens = conciseLookup
+        ? (Number.isFinite(RAG_MAX_OUTPUT_TOKENS_LOOKUP) ? RAG_MAX_OUTPUT_TOKENS_LOOKUP : 120)
+        : (Number.isFinite(RAG_MAX_OUTPUT_TOKENS) ? RAG_MAX_OUTPUT_TOKENS : 220);
+
       const response = await axios.post(`${OLLAMA_BASE_URL}/api/generate`, {
         model: CHAT_MODEL,
         prompt,
@@ -78,7 +105,7 @@ ${question}`;
         keep_alive: RAG_KEEP_ALIVE,
         options: {
           temperature: 0.1,
-          num_predict: Number.isFinite(RAG_MAX_OUTPUT_TOKENS) ? RAG_MAX_OUTPUT_TOKENS : 220,
+          num_predict: maxOutputTokens,
           num_ctx: Number.isFinite(RAG_NUM_CTX) ? Math.max(512, Math.round(RAG_NUM_CTX)) : 2048,
         },
       }, {
@@ -105,12 +132,13 @@ ${question}`;
         selected_docs: contextData.selectedDocs,
         deduped_docs: contextData.dedupedDocs,
         top_k_used: topK,
+        concise_lookup: conciseLookup,
       });
 
       return {
         answer: (response.data && response.data.response) || "",
         context: contextData.context,
-        matches: hits.length,
+        matches: filteredHits.length,
         top_k_used: topK,
         context_meta: {
           token_budget: contextData.tokenBudget,
@@ -141,12 +169,14 @@ ${question}`;
     }
   }
 
-  resolveTopK(question, requestedTopK) {
+  resolveTopK(question, requestedTopK, conciseLookup = false) {
     const parsedTopK = Number(requestedTopK);
     if (Number.isFinite(parsedTopK)) {
-      return Math.min(10, Math.max(1, Math.round(parsedTopK)));
+      const capped = Math.min(10, Math.max(1, Math.round(parsedTopK)));
+      return conciseLookup ? Math.min(2, capped) : capped;
     }
 
+    if (conciseLookup) return 2;
     return this.chooseTopK(question);
   }
 
@@ -158,6 +188,46 @@ ${question}`;
     if (estimatedQuestionTokens <= 20) return 5;
     if (estimatedQuestionTokens >= 80 || deepTechnicalHints.some((hint) => normalized.includes(hint))) return 10;
     return 8;
+  }
+
+  isLookupQuestion(question) {
+    const normalized = String(question || "").toLowerCase();
+    const hints = [
+      "onde fica",
+      "qual tabela",
+      "qual coluna",
+      "em qual tabela",
+      "em qual coluna",
+      "onde vejo",
+      "onde posso ver",
+      "embalagem",
+      "campo",
+    ];
+    return hints.some((hint) => normalized.includes(hint));
+  }
+
+  filterHitsForQuestion(hits, question, conciseLookup) {
+    const safeHits = Array.isArray(hits) ? hits : [];
+    if (!conciseLookup || safeHits.length <= 1) return safeHits;
+
+    const tableMatch = String(question || "").match(/tabela\s+([a-z0-9_]+)/i);
+    const requestedTable = tableMatch ? String(tableMatch[1] || "").toUpperCase() : "";
+
+    if (requestedTable) {
+      const byTable = safeHits.filter((hit) => {
+        const text = String((hit && hit.payload && hit.payload.text) || hit.text || "").toUpperCase();
+        return text.includes(requestedTable);
+      });
+      if (byTable.length) return byTable;
+    }
+
+    // Em perguntas objetivas, prioriza documentos de schema e elimina ruido.
+    const schemaFirst = safeHits.filter((hit) => {
+      const category = String(hit && hit.payload && hit.payload.category ? hit.payload.category : "").toLowerCase();
+      return category === "schema";
+    });
+
+    return schemaFirst.length ? schemaFirst : safeHits;
   }
 }
 
