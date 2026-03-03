@@ -9,18 +9,7 @@ class EmbeddingService {
     const maxAttempts = 2;
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       try {
-        const response = await axios.post(
-          `${OLLAMA_BASE_URL}/api/embeddings`,
-          {
-            model: EMBEDDING_MODEL,
-            prompt: text,
-          },
-          {
-            timeout: 120000,
-          },
-        );
-
-        const embedding = response.data && response.data.embedding;
+        const embedding = await this.requestEmbedding(text);
         if (!Array.isArray(embedding) || embedding.length === 0) {
           throw new Error("Embedding invalido retornado pelo Ollama");
         }
@@ -41,6 +30,44 @@ class EmbeddingService {
         throw error;
       }
     }
+  }
+
+  async requestEmbedding(text) {
+    const timeout = 120000;
+
+    try {
+      const response = await axios.post(
+        `${OLLAMA_BASE_URL}/api/embeddings`,
+        {
+          model: EMBEDDING_MODEL,
+          prompt: text,
+        },
+        { timeout },
+      );
+      return response.data && response.data.embedding;
+    } catch (error) {
+      if (!(error.response && error.response.status === 404)) {
+        throw error;
+      }
+    }
+
+    const response = await axios.post(
+      `${OLLAMA_BASE_URL}/api/embed`,
+      {
+        model: EMBEDDING_MODEL,
+        input: text,
+      },
+      { timeout },
+    );
+
+    if (Array.isArray(response.data && response.data.embedding)) {
+      return response.data.embedding;
+    }
+    if (Array.isArray(response.data && response.data.embeddings) && response.data.embeddings.length) {
+      return response.data.embeddings[0];
+    }
+
+    return null;
   }
 
   normalizeVector(vector) {

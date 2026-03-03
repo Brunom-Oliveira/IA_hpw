@@ -37,7 +37,11 @@ export default function UploadManual() {
 
       setResult(response.data);
     } catch (err) {
-      setError(err?.response?.data?.error || "Falha ao indexar manual");
+      const apiError = err?.response?.data;
+      const itemError = Array.isArray(apiError?.items)
+        ? apiError.items.find((item) => item?.status === "error")?.error
+        : "";
+      setError(apiError?.error || itemError || apiError?.message || "Falha ao indexar manual");
     } finally {
       setLoading(false);
     }

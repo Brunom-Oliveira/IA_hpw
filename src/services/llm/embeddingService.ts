@@ -3,11 +3,29 @@ import { env } from "../../utils/env";
 
 export class EmbeddingService {
   async embed(text: string): Promise<number[]> {
-    const response = await axios.post(`${env.ollamaBaseUrl}/api/embeddings`, {
+    try {
+      const response = await axios.post(`${env.ollamaBaseUrl}/api/embeddings`, {
+        model: env.embeddingModel,
+        prompt: text,
+      });
+      if (Array.isArray(response.data?.embedding)) return response.data.embedding as number[];
+    } catch (error: any) {
+      if (!(error?.response?.status === 404)) {
+        throw error;
+      }
+    }
+
+    const response = await axios.post(`${env.ollamaBaseUrl}/api/embed`, {
       model: env.embeddingModel,
-      prompt: text,
+      input: text,
     });
-    return response.data.embedding;
+
+    if (Array.isArray(response.data?.embedding)) return response.data.embedding as number[];
+    if (Array.isArray(response.data?.embeddings) && response.data.embeddings.length) {
+      return response.data.embeddings[0] as number[];
+    }
+
+    throw new Error("Embedding invalido retornado pelo Ollama");
   }
 
   async embedBatch(texts: string[]): Promise<number[][]> {
@@ -19,4 +37,3 @@ export class EmbeddingService {
     return embeddings;
   }
 }
-

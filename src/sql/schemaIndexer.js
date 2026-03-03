@@ -96,12 +96,7 @@ async function indexSchemaDocuments(documents) {
 }
 
 async function createEmbedding(text) {
-  const response = await axios.post(`${OLLAMA_BASE_URL}/api/embeddings`, {
-    model: EMBEDDING_MODEL,
-    prompt: text,
-  });
-
-  const embedding = response.data && response.data.embedding;
+  const embedding = await requestEmbedding(text);
   if (!Array.isArray(embedding) || !embedding.length) {
     throw new Error("Embedding invalido retornado pelo Ollama");
   }
@@ -109,6 +104,34 @@ async function createEmbedding(text) {
   if (embedding.length === VECTOR_SIZE) return embedding;
   if (embedding.length > VECTOR_SIZE) return embedding.slice(0, VECTOR_SIZE);
   return embedding.concat(new Array(VECTOR_SIZE - embedding.length).fill(0));
+}
+
+async function requestEmbedding(text) {
+  try {
+    const response = await axios.post(`${OLLAMA_BASE_URL}/api/embeddings`, {
+      model: EMBEDDING_MODEL,
+      prompt: text,
+    });
+    return response.data && response.data.embedding;
+  } catch (error) {
+    if (!(error.response && error.response.status === 404)) {
+      throw error;
+    }
+  }
+
+  const response = await axios.post(`${OLLAMA_BASE_URL}/api/embed`, {
+    model: EMBEDDING_MODEL,
+    input: text,
+  });
+
+  if (Array.isArray(response.data && response.data.embedding)) {
+    return response.data.embedding;
+  }
+  if (Array.isArray(response.data && response.data.embeddings) && response.data.embeddings.length) {
+    return response.data.embeddings[0];
+  }
+
+  return null;
 }
 
 async function ensureCollection() {
@@ -136,4 +159,3 @@ module.exports = {
   estimateTokens,
   chunkLargeDocument,
 };
-
