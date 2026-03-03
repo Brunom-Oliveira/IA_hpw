@@ -9,6 +9,7 @@ export default function ChatRag() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [messages, setMessages] = useState([]);
+
   const topK = useMemo(() => {
     const saved = Number(localStorage.getItem("rag_top_k") || 6);
     if (!Number.isFinite(saved)) return 6;
@@ -28,7 +29,7 @@ export default function ChatRag() {
       role: "user",
       text: trimmed,
     };
-    
+
     const assistantId = `${Date.now()}-a`;
     const assistantMessage = {
       id: assistantId,
@@ -36,24 +37,36 @@ export default function ChatRag() {
       text: "",
       context: "",
       usage: null,
-      sources: []
+      sources: [],
     };
 
     setMessages((prev) => [...prev, userMessage, assistantMessage]);
     setQuestion("");
 
     try {
-      const response = await fetch(`${api.defaults.baseURL}/rag/ask`, {
+      const response = await fetch(`${api.defaults.baseURL}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: trimmed,
           topK: Number(topK),
-          stream: true
-        })
+          stream: true,
+        }),
+        signal: AbortSignal.timeout(chatTimeoutMs),
       });
 
-      if (!response.ok) throw new Error("Falha na conexão com o servidor.");
+      if (!response.ok) {
+        let errorMessage = "Falha na conexao com o servidor.";
+        try {
+          const payload = await response.json();
+          if (payload && payload.error) {
+            errorMessage = String(payload.error);
+          }
+        } catch (_err) {
+          // keep default
+        }
+        throw new Error(errorMessage);
+      }
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -70,23 +83,27 @@ export default function ChatRag() {
           if (line.startsWith("data: ")) {
             try {
               const data = JSON.parse(line.replace("data: ", ""));
-              
+
               if (data.sources) {
-                setMessages(prev => prev.map(m => 
-                  m.id === assistantId ? { ...m, sources: data.sources, context: data.context } : m
-                ));
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantId ? { ...m, sources: data.sources, context: data.context } : m
+                  )
+                );
               } else if (data.done) {
-                setMessages(prev => prev.map(m => 
-                  m.id === assistantId ? { ...m, usage: data.usage } : m
-                ));
+                setMessages((prev) =>
+                  prev.map((m) => (m.id === assistantId ? { ...m, usage: data.usage } : m))
+                );
               } else if (data.content) {
                 accumulatedText += data.content;
-                setMessages(prev => prev.map(m => 
-                  m.id === assistantId ? { ...m, text: accumulatedText } : m
-                ));
+                setMessages((prev) =>
+                  prev.map((m) => (m.id === assistantId ? { ...m, text: accumulatedText } : m))
+                );
+              } else if (data.error) {
+                throw new Error(String(data.error));
               }
-            } catch (e) {
-              // ignore partial json
+            } catch (_e) {
+              // ignore partial json chunks
             }
           }
         }
@@ -115,7 +132,7 @@ export default function ChatRag() {
           {!messages.length && (
             <div className="chat-empty">
               <h3>Como posso ajudar hoje?</h3>
-              <p>Pergunte sobre logística, schemas SQL ou manuais do HarpiaWMS.</p>
+              <p>Pergunte sobre logistica, schemas SQL ou manuais do HarpiaWMS.</p>
             </div>
           )}
           {messages.map((message) => (
@@ -123,9 +140,9 @@ export default function ChatRag() {
               key={message.id}
               className={`chat-message ${message.role === "assistant" ? "assistant" : "user"}`}
             >
-              <h4>{message.role === "assistant" ? "Harpia AI" : "Você"}</h4>
+              <h4>{message.role === "assistant" ? "Harpia AI" : "Voce"}</h4>
               <p>{message.text || (message.role === "assistant" ? "..." : "")}</p>
-              
+
               {message.role === "assistant" && (
                 <div className="chat-meta">
                   {message.sources?.length > 0 && (
@@ -141,7 +158,7 @@ export default function ChatRag() {
 
                   {message.usage && (
                     <span>
-                      {message.usage.total_tokens} tokens • {message.usage.execution_time_ms}ms
+                      {message.usage.total_tokens} tokens - {message.usage.execution_time_ms}ms
                     </span>
                   )}
                   {message.context && (
@@ -162,7 +179,7 @@ export default function ChatRag() {
               rows={2}
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
-              placeholder="Digite sua dúvida técnica..."
+              placeholder="Digite sua duvida tecnica..."
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
@@ -175,7 +192,7 @@ export default function ChatRag() {
             </button>
           </div>
           <p className="chat-hint">
-            Top K: <strong>{topK}</strong> • <Link to="/settings">Ajustar nas configurações</Link>
+            Top K: <strong>{topK}</strong> - <Link to="/settings">Ajustar nas configuracoes</Link>
           </p>
         </form>
       </div>

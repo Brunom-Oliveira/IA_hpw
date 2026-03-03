@@ -28,6 +28,36 @@ export default function UploadAudio() {
         ? "Salvando"
         : "Pronto";
   const statusClass = isBusy ? "busy" : "idle";
+  const transcriptionWordCount = transcription.trim()
+    ? transcription.trim().split(/\s+/).filter(Boolean).length
+    : 0;
+
+  const knowledgeTextPreview = knowledgePreview
+    ? [
+        `Categoria: ${knowledgePreview.category || "ticket"}`,
+        `Sistema: ${knowledgePreview.system || "Nao informado"}`,
+        `Modulo: ${knowledgePreview.module || "Nao informado"}`,
+        "",
+        `Titulo: ${knowledgePreview.title || "Nao informado"}`,
+        "",
+        "Problema:",
+        knowledgePreview.problem || "Nao identificado",
+        "",
+        "Sintomas:",
+        ...(Array.isArray(knowledgePreview.symptoms) && knowledgePreview.symptoms.length
+          ? knowledgePreview.symptoms.map((item) => `- ${item}`)
+          : ["- Nao identificado"]),
+        "",
+        `Causa: ${knowledgePreview.cause || "Nao identificado"}`,
+        `Solucao: ${knowledgePreview.solution || "Nao identificado"}`,
+        "",
+        `Tags: ${
+          Array.isArray(knowledgePreview.tags) && knowledgePreview.tags.length
+            ? knowledgePreview.tags.join(", ")
+            : "ticket,audio"
+        }`,
+      ].join("\n")
+    : "";
 
   async function copyText(value, field) {
     if (!value) return;
@@ -271,9 +301,26 @@ export default function UploadAudio() {
               <h3>Transcricao concluida</h3>
               <span className="badge">Whisper</span>
             </div>
-            <p className="stat-label">Texto transcrito pronto para revisao e uso nas etapas seguintes.</p>
+            <div className="result-metrics">
+              <span>{transcriptionWordCount} palavras</span>
+              <span>{transcription.length} caracteres</span>
+            </div>
+            <p className="stat-label">Texto pronto para revisao e uso nas etapas seguintes.</p>
+            <label>
+              Texto final da transcricao
+              <textarea rows={8} value={transcription} readOnly />
+            </label>
+            <div className="result-actions">
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => copyText(transcription, "transcription")}
+              >
+                {copiedField === "transcription" ? "Copiado!" : "Copiar transcricao"}
+              </button>
+            </div>
             <details>
-              <summary>Ver retorno tecnico</summary>
+              <summary>Ver retorno tecnico (JSON)</summary>
               <pre>{JSON.stringify(transcriptionResult, null, 2)}</pre>
             </details>
           </div>
@@ -286,7 +333,7 @@ export default function UploadAudio() {
               <span className="badge">Pronto para copiar</span>
             </div>
             <label>
-              Summary
+              Summary (titulo curto)
               <textarea rows={2} value={mantisSummary} readOnly />
             </label>
             <div className="result-actions">
@@ -299,7 +346,7 @@ export default function UploadAudio() {
               </button>
             </div>
             <label>
-              Description
+              Description (texto para chamado)
               <textarea rows={8} value={mantisDescription} readOnly />
             </label>
             <div className="result-actions">
@@ -317,19 +364,33 @@ export default function UploadAudio() {
         {knowledgePreview && (
           <div className="result-box">
             <div className="result-header">
-              <h3>Preview para base de conhecimento</h3>
-              <span className="badge">JSON estruturado</span>
+              <h3>Versao para Base de Conhecimento</h3>
+              <span className="badge">Contexto de pesquisa</span>
             </div>
-            <pre>{JSON.stringify(knowledgePreview, null, 2)}</pre>
+            <label>
+              Texto estruturado para indexacao
+              <textarea rows={12} value={knowledgeTextPreview} readOnly />
+            </label>
             <div className="result-actions">
               <button
                 type="button"
                 className="secondary"
-                onClick={() => copyText(JSON.stringify(knowledgePreview, null, 2), "knowledge")}
+                onClick={() => copyText(knowledgeTextPreview, "knowledge_text")}
               >
-                {copiedField === "knowledge" ? "Copiado!" : "Copiar JSON"}
+                {copiedField === "knowledge_text" ? "Copiado!" : "Copiar versao texto"}
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => copyText(JSON.stringify(knowledgePreview, null, 2), "knowledge_json")}
+              >
+                {copiedField === "knowledge_json" ? "Copiado!" : "Copiar JSON"}
               </button>
             </div>
+            <details>
+              <summary>Ver JSON tecnico</summary>
+              <pre>{JSON.stringify(knowledgePreview, null, 2)}</pre>
+            </details>
           </div>
         )}
 

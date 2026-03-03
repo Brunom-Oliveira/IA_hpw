@@ -491,6 +491,30 @@ button:disabled {
   margin-top: 0.75rem;
 }
 
+.result-box textarea {
+  margin-top: 0.45rem;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.result-metrics {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.4rem;
+}
+
+.result-metrics span {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--text-muted);
+  border: 1px solid var(--border-main);
+  background: var(--bg-main);
+  border-radius: 999px;
+  padding: 0.22rem 0.55rem;
+}
+
 .result-box pre {
   margin-top: 0.5rem;
   background: var(--bg-main);
