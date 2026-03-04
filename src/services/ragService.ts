@@ -128,7 +128,11 @@ RESPOSTA TÉCNICA:`;
     if (tableHints.length === 0) return hits;
 
     const strictHits = this.filterStrictTableHits(hits, tableHints);
-    if (strictHits.length > 0) {
+    const hasNumericTableHint = tableHints.some((hint) => hint.startsWith("_"));
+
+    // If the user asked by table number/name, never fallback to indirect mentions
+    // from other tables (e.g. FK references to *_461 in *_479).
+    if (hasNumericTableHint) {
       return strictHits;
     }
 
