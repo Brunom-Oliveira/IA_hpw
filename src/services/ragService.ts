@@ -30,8 +30,9 @@ export class RagService {
     const resolvedTopK = this.resolveTopK(question, topK);
     const queryEmbedding = await this.embeddingService.embed(question);
     const hits = await this.vectorDb.search(queryEmbedding, resolvedTopK);
+    const curatedHits = this.curateHitsByQuestion(question, hits);
 
-    const contextData = this.buildContext(question, hits);
+    const contextData = this.buildContext(question, curatedHits);
     const prompt = this.buildWmsPrompt(contextData, question);
 
     const result = await this.llm.generate(prompt);
@@ -39,9 +40,9 @@ export class RagService {
     return {
       answer: result.response,
       context: contextData,
-      matches: hits.length,
+      matches: curatedHits.length,
       usage: result.usage,
-      sources: hits.map(h => ({ title: String(h.metadata?.title || "Documento"), category: String(h.metadata?.category || "Geral") }))
+      sources: curatedHits.map(h => ({ title: String(h.metadata?.title || "Documento"), category: String(h.metadata?.category || "Geral") }))
     };
   }
 
@@ -49,11 +50,12 @@ export class RagService {
     const resolvedTopK = this.resolveTopK(question, topK);
     const queryEmbedding = await this.embeddingService.embed(question);
     const hits = await this.vectorDb.search(queryEmbedding, resolvedTopK);
+    const curatedHits = this.curateHitsByQuestion(question, hits);
 
-    const contextData = this.buildContext(question, hits);
+    const contextData = this.buildContext(question, curatedHits);
     const prompt = this.buildWmsPrompt(contextData, question);
 
-    const sources = hits.map(h => ({
+    const sources = curatedHits.map(h => ({
       title: String(h.metadata?.title || "Documento"),
       category: String(h.metadata?.category || "Geral")
     }));
@@ -118,5 +120,69 @@ RESPOSTA TÉCNICA:`;
   private estimateTokens(text: string): number {
     return Math.ceil(text.length / 4);
   }
-}
 
+  private curateHitsByQuestion(question: string, hits: SearchResult[]): SearchResult[] {
+    if (!Array.isArray(hits) || hits.length === 0) return [];
+
+    const tableHints = this.extractTableHints(question);
+    if (tableHints.length === 0) return hits;
+
+    const scored = hits
+      .map((hit) => ({
+        hit,
+        score: this.computeHitLexicalScore(hit, tableHints),
+      }))
+      .sort((a, b) => b.score - a.score);
+
+    const bestScore = scored[0]?.score ?? 0;
+    if (bestScore <= 0) {
+      // If the user explicitly asked for a table and we found no related chunks,
+      // prefer empty context over unrelated tables.
+      return [];
+    }
+
+    return scored
+      .filter((item) => item.score > 0)
+      .map((item) => item.hit);
+  }
+
+  private extractTableHints(question: string): string[] {
+    const normalized = String(question || "").toUpperCase();
+    const hints = new Set<string>();
+
+    const explicitTable = normalized.match(/\b([A-Z][A-Z0-9_]*_\d{2,4})\b/g) || [];
+    explicitTable.forEach((value) => hints.add(value));
+
+    const numericTable = normalized.match(/\bTABELA\s+(\d{2,4})\b/g) || [];
+    numericTable.forEach((entry) => {
+      const digits = entry.replace(/\D+/g, "");
+      if (digits) hints.add(`_${digits}`);
+    });
+
+    return [...hints];
+  }
+
+  private computeHitLexicalScore(hit: SearchResult, tableHints: string[]): number {
+    const title = String(hit.metadata?.title || "").toUpperCase();
+    const source = String(hit.metadata?.source || "").toUpperCase();
+    const textHead = String(hit.text || "").slice(0, 2500).toUpperCase();
+    const haystack = `${title}\n${source}\n${textHead}`;
+
+    let score = 0;
+    for (const hint of tableHints) {
+      if (!hint) continue;
+
+      if (hint.startsWith("_")) {
+        const suffix = hint;
+        const regex = new RegExp(`[A-Z0-9_]+${suffix}\\b`, "g");
+        if (regex.test(haystack)) score += 40;
+        if (title.includes(suffix)) score += 20;
+      } else {
+        if (haystack.includes(hint)) score += 60;
+        if (title.includes(hint)) score += 25;
+      }
+    }
+
+    return score;
+  }
+}
