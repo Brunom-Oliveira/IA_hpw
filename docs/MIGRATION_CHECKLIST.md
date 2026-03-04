@@ -6,7 +6,7 @@ Este guia reduz risco de indisponibilidade ao migrar o container para outra VPS.
 
 Use nomes com tag explicita para evitar erro `model not found`:
 
-- `LLM_MODEL=mistral:latest`
+- `LLM_MODEL=granite4:3b`
 - `EMBEDDING_MODEL=nomic-embed-text:latest`
 
 No `ollama-init`, fazer pull com as mesmas tags.
