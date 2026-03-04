@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../api";
 
@@ -9,6 +9,11 @@ export default function ChatRag() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [messages, setMessages] = useState([]);
+  const [status, setStatus] = useState({
+    phase: "",
+    startedAt: 0,
+    elapsedMs: 0,
+  });
 
   const topK = useMemo(() => {
     const saved = Number(localStorage.getItem("rag_top_k") || 6);
@@ -16,13 +21,32 @@ export default function ChatRag() {
     return Math.min(10, Math.max(1, Math.round(saved)));
   }, [messages.length]);
 
+  useEffect(() => {
+    if (!loading || !status.startedAt) return;
+
+    const timer = setInterval(() => {
+      setStatus((prev) => ({
+        ...prev,
+        elapsedMs: Date.now() - prev.startedAt,
+      }));
+    }, 400);
+
+    return () => clearInterval(timer);
+  }, [loading, status.startedAt]);
+
   async function handleAsk(event) {
     event.preventDefault();
     const trimmed = question.trim();
     if (!trimmed || loading) return;
 
+    const startedAt = Date.now();
     setLoading(true);
     setError("");
+    setStatus({
+      phase: "Iniciando consulta...",
+      startedAt,
+      elapsedMs: 0,
+    });
 
     const userMessage = {
       id: `${Date.now()}-q`,
@@ -42,6 +66,18 @@ export default function ChatRag() {
 
     setMessages((prev) => [...prev, userMessage, assistantMessage]);
     setQuestion("");
+
+    const phaseTimers = [
+      setTimeout(() => {
+        setStatus((prev) => ({ ...prev, phase: "Buscando contexto na base..." }));
+      }, 500),
+      setTimeout(() => {
+        setStatus((prev) => ({ ...prev, phase: "Ranqueando trechos relevantes..." }));
+      }, 2200),
+      setTimeout(() => {
+        setStatus((prev) => ({ ...prev, phase: "Gerando resposta tecnica..." }));
+      }, 5200),
+    ];
 
     try {
       const response = await api.post(
@@ -81,6 +117,7 @@ export default function ChatRag() {
             : m
         )
       );
+      setStatus((prev) => ({ ...prev, phase: "Resposta pronta." }));
     } catch (err) {
       setMessages((prev) =>
         prev.map((m) =>
@@ -88,7 +125,9 @@ export default function ChatRag() {
         )
       );
       setError(err?.response?.data?.error || err.message || "Falha ao consultar o RAG.");
+      setStatus((prev) => ({ ...prev, phase: "Falha ao consultar o servidor." }));
     } finally {
+      phaseTimers.forEach((id) => clearTimeout(id));
       setLoading(false);
     }
   }
@@ -96,7 +135,10 @@ export default function ChatRag() {
   function clearChat() {
     setMessages([]);
     setError("");
+    setStatus({ phase: "", startedAt: 0, elapsedMs: 0 });
   }
+
+  const elapsedSeconds = Math.floor(status.elapsedMs / 1000);
 
   return (
     <section className="chat-view">
@@ -152,6 +194,17 @@ export default function ChatRag() {
         </div>
 
         <form className="chat-form" onSubmit={handleAsk}>
+          {loading && (
+            <div className="chat-progress" aria-live="polite">
+              <div className="chat-progress-head">
+                <strong>{status.phase || "Processando..."}</strong>
+                <span>{elapsedSeconds}s</span>
+              </div>
+              <div className="chat-progress-bar">
+                <div className="chat-progress-indicator" />
+              </div>
+            </div>
+          )}
           <div className="chat-input-wrapper">
             <textarea
               rows={2}
