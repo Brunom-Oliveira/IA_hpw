@@ -127,6 +127,11 @@ RESPOSTA TÉCNICA:`;
     const tableHints = this.extractTableHints(question);
     if (tableHints.length === 0) return hits;
 
+    const strictHits = this.filterStrictTableHits(hits, tableHints);
+    if (strictHits.length > 0) {
+      return strictHits;
+    }
+
     const scored = hits
       .map((hit) => ({
         hit,
@@ -184,5 +189,40 @@ RESPOSTA TÉCNICA:`;
     }
 
     return score;
+  }
+
+  private filterStrictTableHits(hits: SearchResult[], tableHints: string[]): SearchResult[] {
+    const strictSuffixes = tableHints
+      .filter((hint) => hint.startsWith("_"))
+      .map((hint) => hint.slice(1))
+      .filter(Boolean);
+
+    const strictNames = tableHints
+      .filter((hint) => !hint.startsWith("_"))
+      .map((hint) => hint.toUpperCase());
+
+    const strict = hits.filter((hit) => {
+      const title = String(hit.metadata?.title || "").toUpperCase();
+      const source = String(hit.metadata?.source || "").toUpperCase();
+      const system = String(hit.metadata?.system || "").toUpperCase();
+      const textHead = String(hit.text || "").slice(0, 900).toUpperCase();
+      const haystack = `${title}\n${source}\n${system}`;
+
+      // Exact table name match has highest priority.
+      for (const tableName of strictNames) {
+        if (haystack.includes(tableName)) return true;
+        if (textHead.includes(`CREATE TABLE`) && textHead.includes(tableName)) return true;
+      }
+
+      // Numeric suffix strict match in metadata (title/source/system).
+      for (const suffix of strictSuffixes) {
+        const suffixPattern = new RegExp(`_[0]*${suffix}\\b`);
+        if (suffixPattern.test(haystack)) return true;
+      }
+
+      return false;
+    });
+
+    return strict.sort((a, b) => this.computeHitLexicalScore(b, tableHints) - this.computeHitLexicalScore(a, tableHints));
   }
 }
