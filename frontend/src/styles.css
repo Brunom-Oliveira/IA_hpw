@@ -237,6 +237,25 @@ h1, h2, h3, h4 {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(56, 189, 248, 0.5) transparent;
+}
+
+.chat-box::-webkit-scrollbar {
+  width: 8px;
+}
+
+.chat-box::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-box::-webkit-scrollbar-thumb {
+  background: rgba(56, 189, 248, 0.35);
+  border-radius: 999px;
+}
+
+.chat-box:hover::-webkit-scrollbar-thumb {
+  background: rgba(56, 189, 248, 0.6);
 }
 
 .chat-message {

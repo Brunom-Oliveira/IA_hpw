@@ -1,8 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import api from "../api";
-
-const chatTimeoutMs = Number(import.meta.env.VITE_CHAT_TIMEOUT_MS || 420000);
 
 export default function ChatRag() {
   const [question, setQuestion] = useState("");
@@ -14,6 +11,8 @@ export default function ChatRag() {
     startedAt: 0,
     elapsedMs: 0,
   });
+  const chatBoxRef = useRef(null);
+  const chatTimeoutMs = Number(import.meta.env.VITE_CHAT_TIMEOUT_MS || 420000);
 
   const topK = useMemo(() => {
     const saved = Number(localStorage.getItem("rag_top_k") || 6);
@@ -33,6 +32,17 @@ export default function ChatRag() {
 
     return () => clearInterval(timer);
   }, [loading, status.startedAt]);
+
+  useEffect(() => {
+    if (!chatBoxRef.current) return;
+    chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
+  }, [messages]);
+
+  const resolveChatEndpoint = () => {
+    const base = String(import.meta.env.VITE_API_URL || "").trim();
+    if (!base || base === "/") return "/api/chat";
+    return `${base.replace(/\/$/, "")}/api/chat`;
+  };
 
   async function handleAsk(event) {
     event.preventDefault();
@@ -80,40 +90,94 @@ export default function ChatRag() {
     ];
 
     try {
-      const response = await api.post(
-        "/rag/ask",
-        {
-          question: trimmed,
-          topK: Number(topK),
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), chatTimeoutMs);
+      const response = await fetch(resolveChatEndpoint(), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-        {
-          timeout: chatTimeoutMs,
+        body: JSON.stringify({
+          message: trimmed,
+          topK: Number(topK),
+          stream: true,
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+      if (!response.ok || !response.body) {
+        const rawError = await response.text();
+        throw new Error(rawError || `HTTP ${response.status}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let buffer = "";
+      let aggregatedText = "";
+
+      const applyPartialMessage = (patch) => {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === assistantId ? { ...m, ...patch } : m))
+        );
+      };
+
+      const handleServerChunk = (payload) => {
+        if (!payload || typeof payload !== "object") return;
+        if (payload.error) throw new Error(String(payload.error));
+
+        if (typeof payload.context === "string" || Array.isArray(payload.sources)) {
+          applyPartialMessage({
+            context: typeof payload.context === "string" ? payload.context : "",
+            sources: Array.isArray(payload.sources) ? payload.sources : [],
+          });
+          return;
         }
-      );
 
-      const payload = response?.data || {};
-      const answer = typeof payload.answer === "string" ? payload.answer : "";
-      const context = typeof payload.context === "string" ? payload.context : "";
-      const usageRaw = payload.usage || {};
-      const sources = Array.isArray(payload.sources) ? payload.sources : [];
+        if (typeof payload.content === "string" && payload.content.length > 0) {
+          aggregatedText += payload.content;
+          applyPartialMessage({ text: aggregatedText });
+        }
 
-      const usage = usageRaw
-        ? {
-            total_tokens: usageRaw.total_tokens ?? usageRaw.totalTokens ?? 0,
-            execution_time_ms: usageRaw.execution_time_ms ?? usageRaw.executionTimeMs ?? 0,
+        if (payload.done && payload.usage) {
+          applyPartialMessage({
+            usage: {
+              total_tokens: payload.usage.totalTokens ?? payload.usage.total_tokens ?? 0,
+              execution_time_ms:
+                payload.usage.executionTimeMs ?? payload.usage.execution_time_ms ?? 0,
+            },
+          });
+        }
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop() || "";
+
+        for (const part of parts) {
+          const line = part
+            .split("\n")
+            .map((l) => l.trim())
+            .find((l) => l.startsWith("data:"));
+          if (!line) continue;
+          const data = line.slice(5).trim();
+          if (!data) continue;
+          try {
+            handleServerChunk(JSON.parse(data));
+          } catch (parseErr) {
+            // ignore malformed partial chunks
           }
-        : null;
+        }
+      }
 
       setMessages((prev) =>
         prev.map((m) =>
-          m.id === assistantId
-            ? {
-                ...m,
-                text: answer || "Sem resposta do modelo.",
-                context,
-                sources,
-                usage,
-              }
+          m.id === assistantId && !m.text
+            ? { ...m, text: "Sem resposta do modelo." }
             : m
         )
       );
@@ -124,7 +188,7 @@ export default function ChatRag() {
           m.id === assistantId ? { ...m, text: "Falha ao gerar resposta." } : m
         )
       );
-      setError(err?.response?.data?.error || err.message || "Falha ao consultar o RAG.");
+      setError(err?.message || "Falha ao consultar o RAG.");
       setStatus((prev) => ({ ...prev, phase: "Falha ao consultar o servidor." }));
     } finally {
       phaseTimers.forEach((id) => clearTimeout(id));
@@ -148,7 +212,7 @@ export default function ChatRag() {
       </header>
 
       <div className="chat-container">
-        <div className="chat-box">
+          <div className="chat-box" ref={chatBoxRef}>
           {!messages.length && (
             <div className="chat-empty">
               <h3>Como posso ajudar hoje?</h3>
