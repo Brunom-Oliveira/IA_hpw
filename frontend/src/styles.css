@@ -759,6 +759,12 @@ button.secondary:hover {
   border-bottom: 1px solid var(--border-main);
 }
 
+.sources-list-pending {
+  border-bottom: none;
+  margin-bottom: 0.3rem;
+  padding-bottom: 0;
+}
+
 .source-tag {
   background: var(--bg-main);
   padding: 0.2rem 0.5rem;
@@ -766,6 +772,18 @@ button.secondary:hover {
   font-size: 0.7rem;
   color: var(--primary);
   border: 1px solid var(--border-main);
+}
+
+.chat-source-preview {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.dashboard-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .settings-links {

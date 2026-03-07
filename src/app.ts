@@ -18,6 +18,7 @@ import { SchemaController } from "./controllers/schemaController";
 import { PublicRagController } from "./controllers/publicRagController";
 import { KnowledgeService } from "./services/knowledgeService";
 import { SchemaService } from "./services/schemaService";
+import { RagMetadataReindexService } from "./services/ragMetadataReindexService";
 
 export const buildApp = () => {
   const app = express();
@@ -29,10 +30,11 @@ export const buildApp = () => {
   const embeddingService = new EmbeddingService();
   const llmService = new LlmService();
   const ragService = new RagService(vectorDb, embeddingService, llmService);
+  const ragMetadataReindexService = new RagMetadataReindexService();
 
   const documentController = new DocumentController(ragService);
   const classificationController = new ClassificationController(new ClassificationService(llmService));
-  const chatController = new ChatController(ragService);
+  const chatController = new ChatController(ragService, ragMetadataReindexService);
   const transcribeController = new TranscribeController(new WhisperService());
   const knowledgeController = new KnowledgeController(new KnowledgeService(embeddingService, llmService));
   const schemaController = new SchemaController(new SchemaService(embeddingService));

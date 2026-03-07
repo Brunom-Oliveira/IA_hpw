@@ -73,7 +73,10 @@ export class RagService {
 
     const embeddings = await this.embeddingService.embedBatch(documents.map((doc) => doc.text));
     await this.vectorDb.upsert(documents, embeddings);
-    ragQueryCache.clear();
+    ragQueryCache.invalidateByCollections([env.qdrantCollection]);
+    ragQueryCache.invalidateBySourceKeys(
+      documents.map((doc) => String(doc.metadata?.source || doc.metadata?.title || ""))
+    );
     return documents.map((doc) => doc.id);
   }
 
@@ -102,7 +105,7 @@ export class RagService {
       usage: result.usage,
       sources: this.mapSources(curatedHits),
     };
-    ragQueryCache.set(cacheKey, response);
+    ragQueryCache.set(cacheKey, response, this.buildCacheMetadata(curatedHits));
     return response;
   }
 
@@ -163,7 +166,7 @@ export class RagService {
       matches: curatedHits.length,
       usage: finalUsage,
       sources,
-    });
+    }, this.buildCacheMetadata(curatedHits));
   }
 
   async search(query: string, topK = 4): Promise<SearchResult[]> {
@@ -476,6 +479,12 @@ export class RagService {
       title: String(hit.metadata?.title || hit.metadata?.source || "Documento"),
       category: String(hit.metadata?.category || "Geral"),
     }));
+  }
+
+  private buildCacheMetadata(hits: SearchResult[]): { sourceKeys: string[]; collections: string[] } {
+    const sourceKeys = hits.map((hit) => this.buildSourceKey(hit));
+    const collections = hits.map((hit) => String(hit.metadata?.collection || hit.metadata?.collection_name || "knowledge_base"));
+    return { sourceKeys, collections };
   }
 
   private formatContextBlock(hit: SearchResult): string {

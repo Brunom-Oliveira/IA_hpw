@@ -1,5 +1,6 @@
 import pdfParse from "pdf-parse";
 import { RagService } from "./ragService";
+import { ragQueryCache } from "./ragQueryCache";
 import { env } from "../utils/env";
 import { buildRagMetadata } from "../utils/ragMetadata";
 
@@ -34,6 +35,8 @@ export class PdfIngestService {
     }));
 
     const ids = await this.ragService.insertDocuments(documents);
+    ragQueryCache.invalidateByCollections([env.qdrantCollection]);
+    ragQueryCache.invalidateBySourceKeys([file.originalname]);
     return {
       source: file.originalname,
       chunks: chunks.length,

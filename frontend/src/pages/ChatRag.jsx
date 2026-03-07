@@ -269,7 +269,7 @@ export default function ChatRag() {
               {message.role === "assistant" && (
                 <div className="chat-meta">
                   {message.sources?.length > 0 && (
-                    <div className="sources-list">
+                    <div className={`sources-list ${!message.text ? "sources-list-pending" : ""}`}>
                       <small>Fontes: </small>
                       {message.sources.map((s, idx) => (
                         <span key={idx} className="source-tag" title={s.category}>
@@ -277,6 +277,10 @@ export default function ChatRag() {
                         </span>
                       ))}
                     </div>
+                  )}
+
+                  {message.sources?.length > 0 && !message.text && (
+                    <p className="chat-source-preview">Fontes selecionadas. Gerando resposta com base nesses documentos.</p>
                   )}
 
                   {message.usage && (

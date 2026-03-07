@@ -1,8 +1,12 @@
 import { Request, Response } from "express";
 import { RagService } from "../services/ragService";
+import { RagMetadataReindexService } from "../services/ragMetadataReindexService";
 
 export class ChatController {
-  constructor(private readonly ragService: RagService) {}
+  constructor(
+    private readonly ragService: RagService,
+    private readonly ragMetadataReindexService: RagMetadataReindexService,
+  ) {}
 
   ask = async (req: Request, res: Response): Promise<void> => {
     const { message, topK, stream } = req.body;
@@ -65,5 +69,19 @@ export class ChatController {
 
   diagnostics = (_req: Request, res: Response): void => {
     res.json(this.ragService.getDiagnostics());
+  };
+
+  reindex = async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const result = await this.ragMetadataReindexService.reindexAllCollections();
+      res.json({
+        message: "Reindexacao concluida",
+        ...result,
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        error: error?.message || "Falha ao reindexar metadata do RAG",
+      });
+    }
   };
 }

@@ -45,13 +45,13 @@ export class RagMetadataReindexService {
         results.push(result);
       }
 
-      ragQueryCache.clear();
-
       const summary = {
         collections: results,
         total_scanned: results.reduce((sum, item) => sum + item.scanned_points, 0),
         total_updated: results.reduce((sum, item) => sum + item.updated_points, 0),
       };
+
+      ragQueryCache.invalidateByCollections(summary.collections.map((item) => item.collection));
 
       ragOpsStatusService.markReindexFinished({
         status: "success",

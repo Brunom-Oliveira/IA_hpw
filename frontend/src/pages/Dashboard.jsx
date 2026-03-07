@@ -9,6 +9,7 @@ export default function Dashboard() {
   const [ragStats, setRagStats] = useState(null);
   const [category, setCategory] = useState("");
   const [loading, setLoading] = useState(false);
+  const [reindexing, setReindexing] = useState(false);
   const [error, setError] = useState("");
 
   const filteredItems = useMemo(() => {
@@ -39,11 +40,29 @@ export default function Dashboard() {
     }
   }
 
+  async function triggerReindex() {
+    setReindexing(true);
+    setError("");
+    try {
+      await api.post("/api/rag/reindex");
+      await fetchData();
+    } catch (err) {
+      setError(err?.response?.data?.error || "Falha ao iniciar reindexacao");
+    } finally {
+      setReindexing(false);
+    }
+  }
+
   return (
     <section>
       <header className="page-header">
         <h2>Dashboard</h2>
-        <button onClick={fetchData}>Atualizar</button>
+        <div className="dashboard-actions">
+          <button type="button" className="secondary" onClick={triggerReindex} disabled={reindexing || loading}>
+            {reindexing ? "Reindexando..." : "Reindexar RAG"}
+          </button>
+          <button onClick={fetchData}>Atualizar</button>
+        </div>
       </header>
 
       <div className="cards stats-row">

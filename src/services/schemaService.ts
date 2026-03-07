@@ -69,7 +69,8 @@ export class SchemaService {
     }
 
     await axios.put(`${env.qdrantUrl}/collections/${SCHEMA_DOCUMENTS_COLLECTION}/points`, { points });
-    ragQueryCache.clear();
+    ragQueryCache.invalidateByCollections([SCHEMA_DOCUMENTS_COLLECTION]);
+    ragQueryCache.invalidateBySourceKeys([path.basename(sql.path)]);
 
     return {
       file: sql.path,
@@ -100,7 +101,7 @@ export class SchemaService {
 
     const documents: SchemaDocument[] = transformDDLToDocuments(parsed);
     const indexing = await indexSchemaDocuments(documents);
-    ragQueryCache.clear();
+    ragQueryCache.invalidateByCollections(["schema_knowledge"]);
 
     return {
       summary: {

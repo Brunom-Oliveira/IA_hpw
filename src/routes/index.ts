@@ -20,6 +20,7 @@ export const createRoutes = (deps: {
   router.post("/classify", deps.classificationController.classify);
   router.post("/chat", deps.chatController.ask);
   router.get("/rag/stats", deps.chatController.diagnostics);
+  router.post("/rag/reindex", deps.chatController.reindex);
   router.post("/transcribe", upload.single("audio"), deps.transcribeController.transcribe);
   router.get("/health", (_req, res) => res.json({ ok: true }));
 

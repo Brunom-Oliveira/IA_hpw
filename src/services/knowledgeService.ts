@@ -31,6 +31,7 @@ export class KnowledgeService {
   private readonly transformer = new KnowledgeTransformer();
   private readonly validator = new KnowledgeValidator();
   private readonly schemaParser = new SchemaParser();
+  private readonly collectionName = env.qdrantCollection;
 
   constructor(
     private readonly embeddingService: EmbeddingService,
@@ -197,31 +198,35 @@ export class KnowledgeService {
     const id = randomUUID();
     const createdAt = new Date().toISOString();
 
+    const payload: Record<string, unknown> = {
+      created_at: createdAt,
+      text,
+      ...buildRagMetadata({
+        category: structuredData.category,
+        system: structuredData.system,
+        module: structuredData.module,
+        title: structuredData.title,
+        source: structuredData.title || structuredData.system || "knowledge-item",
+        text,
+        tableName: structuredData.tables_related[0] || extractPrimaryTableName(text),
+        relatedTables: structuredData.tables_related || [],
+        tags: structuredData.tags || [],
+        documentType: structuredData.category === "schema" ? "schema_table" : undefined,
+      }),
+      tables_related: structuredData.tables_related || [],
+      tags: structuredData.tags || [],
+    };
+
     const point = {
       id,
       vector,
-      payload: {
-        created_at: createdAt,
-        text,
-        ...buildRagMetadata({
-          category: structuredData.category,
-          system: structuredData.system,
-          module: structuredData.module,
-          title: structuredData.title,
-          source: structuredData.title || structuredData.system || "knowledge-item",
-          text,
-          tableName: structuredData.tables_related[0] || extractPrimaryTableName(text),
-          relatedTables: structuredData.tables_related || [],
-          tags: structuredData.tags || [],
-          documentType: structuredData.category === "schema" ? "schema_table" : undefined,
-        }),
-        tables_related: structuredData.tables_related || [],
-        tags: structuredData.tags || [],
-      },
+      payload,
     };
+    const sourceKey = String(payload.source || payload.title || "");
 
     await axios.put(`${env.qdrantUrl}/collections/${env.qdrantCollection}/points`, { points: [point] });
-    ragQueryCache.clear();
+    ragQueryCache.invalidateByCollections([this.collectionName]);
+    ragQueryCache.invalidateBySourceKeys([sourceKey]);
     return { id, payload: point.payload };
   }
 
