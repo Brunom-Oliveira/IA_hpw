@@ -1,0 +1,1 @@
+Nao encontrei informacoes suficientes na base atual para responder com seguranca.

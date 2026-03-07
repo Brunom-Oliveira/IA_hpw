@@ -1,0 +1,1 @@
+Se a pergunta for sobre erro ou falha, responda com base em evidencias do contexto e destaque a acao recomendada.

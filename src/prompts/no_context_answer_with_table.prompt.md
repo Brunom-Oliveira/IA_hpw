@@ -1,0 +1,1 @@
+Nao encontrei contexto suficiente da tabela {{tableName}} na base atual para responder com seguranca.

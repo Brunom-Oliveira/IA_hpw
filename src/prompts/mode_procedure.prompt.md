@@ -1,0 +1,1 @@
+Se a pergunta for operacional, responda em passos curtos e praticos.

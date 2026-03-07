@@ -1,0 +1,1 @@
+Se a pergunta citar uma tabela especifica, responda somente com informacoes dessa tabela. Nao use tabelas relacionadas como substitutas.
