@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import { createRoutes } from "./routes";
 import { createCompatibilityRoutes } from "./routes/compatibility";
+import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 import { QdrantVectorDbService } from "./services/vector-db/qdrantVectorDbService";
 import { EmbeddingService } from "./services/llm/embeddingService";
 import { RagService } from "./services/ragService";
@@ -32,15 +33,26 @@ export const buildApp = () => {
   const llmService = new LlmService();
   const ragService = new RagService(vectorDb, embeddingService, llmService);
   const ragMetadataReindexService = new RagMetadataReindexService();
-  const ragReindexQueueService = new RagReindexQueueService(ragMetadataReindexService);
+  const ragReindexQueueService = new RagReindexQueueService(
+    ragMetadataReindexService,
+  );
 
   const documentController = new DocumentController(ragService);
-  const classificationController = new ClassificationController(new ClassificationService(llmService));
+  const classificationController = new ClassificationController(
+    new ClassificationService(llmService),
+  );
   const chatController = new ChatController(ragService, ragReindexQueueService);
   const transcribeController = new TranscribeController(new WhisperService());
-  const knowledgeController = new KnowledgeController(new KnowledgeService(embeddingService, llmService));
-  const schemaController = new SchemaController(new SchemaService(embeddingService));
-  const publicRagController = new PublicRagController(ragService, new PdfIngestService(ragService));
+  const knowledgeController = new KnowledgeController(
+    new KnowledgeService(embeddingService, llmService),
+  );
+  const schemaController = new SchemaController(
+    new SchemaService(embeddingService),
+  );
+  const publicRagController = new PublicRagController(
+    ragService,
+    new PdfIngestService(ragService),
+  );
 
   app.use(
     "/api",
@@ -49,7 +61,7 @@ export const buildApp = () => {
       classificationController,
       chatController,
       transcribeController,
-    })
+    }),
   );
   app.use(
     "/",
@@ -60,9 +72,11 @@ export const buildApp = () => {
     }),
   );
 
-  app.use((error: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-    res.status(500).json({ error: error.message ?? "Erro interno" });
-  });
+  // Middleware para capturar 404
+  app.use(notFoundHandler);
+
+  // Global error handler (DEVE SER O ÚLTIMO MIDDLEWARE)
+  app.use(errorHandler);
 
   return app;
 };
