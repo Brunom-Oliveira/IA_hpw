@@ -3,6 +3,7 @@ import cors from "cors";
 import { createRoutes } from "./routes";
 import { createCompatibilityRoutes } from "./routes/compatibility";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
+import { requestIdMiddleware } from "./middleware/requestIdMiddleware";
 import { QdrantVectorDbService } from "./services/vector-db/qdrantVectorDbService";
 import { EmbeddingService } from "./services/llm/embeddingService";
 import { RagService } from "./services/ragService";
@@ -27,6 +28,7 @@ export const buildApp = () => {
 
   app.use(cors());
   app.use(express.json({ limit: "2mb" }));
+  app.use(requestIdMiddleware); // Gera/recupera request ID para cada request
 
   const vectorDb = new QdrantVectorDbService();
   const embeddingService = new EmbeddingService();
