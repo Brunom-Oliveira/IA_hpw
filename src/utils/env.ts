@@ -23,6 +23,7 @@ export const env = {
   ragNumCtx: toNumber(process.env.RAG_NUM_CTX, 1024),
   ragMaxOutputTokens: toNumber(process.env.RAG_MAX_OUTPUT_TOKENS, 160),
   ragCacheMaxItems: toNumber(process.env.RAG_CACHE_MAX_ITEMS, 300),
+  ragAdminToken: process.env.RAG_ADMIN_TOKEN ?? "",
   qdrantUrl: process.env.QDRANT_URL ?? "http://qdrant:6333",
   qdrantCollection: process.env.QDRANT_COLLECTION ?? "knowledge_base",
   qdrantVectorSize: toNumber(process.env.QDRANT_VECTOR_SIZE, 768),

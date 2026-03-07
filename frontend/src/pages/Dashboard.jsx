@@ -10,6 +10,7 @@ export default function Dashboard() {
   const [category, setCategory] = useState("");
   const [loading, setLoading] = useState(false);
   const [reindexing, setReindexing] = useState(false);
+  const [activeJobId, setActiveJobId] = useState("");
   const [error, setError] = useState("");
 
   const filteredItems = useMemo(() => {
@@ -20,6 +21,17 @@ export default function Dashboard() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    const currentJob = ragStats?.jobs?.find((job) => job.id === activeJobId);
+    if (!currentJob || !["queued", "running"].includes(currentJob.status)) return;
+
+    const timer = setInterval(() => {
+      fetchData();
+    }, 4000);
+
+    return () => clearInterval(timer);
+  }, [ragStats, activeJobId]);
 
   async function fetchData() {
     setLoading(true);
@@ -44,7 +56,8 @@ export default function Dashboard() {
     setReindexing(true);
     setError("");
     try {
-      await api.post("/api/rag/reindex");
+      const { data } = await api.post("/api/rag/reindex");
+      setActiveJobId(data?.job?.id || "");
       await fetchData();
     } catch (err) {
       setError(err?.response?.data?.error || "Falha ao iniciar reindexacao");
@@ -102,12 +115,42 @@ export default function Dashboard() {
                 ? `Ultima finalizacao: ${new Date(ragStats.operations.finished_at).toLocaleString()}`
                 : "Nenhuma execucao registrada"}
             </span>
+            {activeJobId && <span className="stat-label">Job atual: {activeJobId}</span>}
           </article>
           <article className="card">
             <h3>Pontos Reindexados</h3>
             <strong>{ragStats.operations?.total_updated ?? 0}</strong>
             <span className="stat-label">Scanned: {ragStats.operations?.total_scanned ?? 0}</span>
           </article>
+        </div>
+      )}
+
+      {ragStats?.jobs?.length > 0 && (
+        <div className="table-container dashboard-jobs">
+          <table>
+            <thead>
+              <tr>
+                <th>Job</th>
+                <th>Status</th>
+                <th>Atualizado</th>
+                <th>Scanned</th>
+                <th>Updated</th>
+                <th>Erro</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ragStats.jobs.map((job) => (
+                <tr key={job.id}>
+                  <td>{job.id.slice(0, 8)}</td>
+                  <td><span className="badge">{job.status}</span></td>
+                  <td>{job.finished_at ? new Date(job.finished_at).toLocaleString() : "-"}</td>
+                  <td>{job.total_scanned ?? 0}</td>
+                  <td>{job.total_updated ?? 0}</td>
+                  <td>{job.error || "-"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 

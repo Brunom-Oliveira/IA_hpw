@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import api from "../api";
+import api, { RAG_ADMIN_TOKEN_KEY } from "../api";
 
 const TOP_K_KEY = "rag_top_k";
 
 export default function Settings() {
   const [topK, setTopK] = useState("6");
+  const [adminToken, setAdminToken] = useState("");
   const [message, setMessage] = useState("");
   const [ragStats, setRagStats] = useState(null);
   const [statsLoading, setStatsLoading] = useState(false);
@@ -14,6 +15,8 @@ export default function Settings() {
   useEffect(() => {
     const saved = localStorage.getItem(TOP_K_KEY);
     if (saved) setTopK(saved);
+    const savedToken = localStorage.getItem(RAG_ADMIN_TOKEN_KEY);
+    if (savedToken) setAdminToken(savedToken);
     loadRagStats();
   }, []);
 
@@ -22,6 +25,11 @@ export default function Settings() {
     const value = clampTopK(Number(topK));
     localStorage.setItem(TOP_K_KEY, String(value));
     setTopK(String(value));
+    if (adminToken.trim()) {
+      localStorage.setItem(RAG_ADMIN_TOKEN_KEY, adminToken.trim());
+    } else {
+      localStorage.removeItem(RAG_ADMIN_TOKEN_KEY);
+    }
     setMessage("Configuracoes salvas.");
   }
 
@@ -61,6 +69,19 @@ export default function Settings() {
                 }}
               />
               <span className="stat-label">Define quantos trechos de documento a inteligencia deve ler.</span>
+            </label>
+            <label>
+              Token administrativo do RAG
+              <input
+                type="password"
+                value={adminToken}
+                onChange={(e) => {
+                  setAdminToken(e.target.value);
+                  setMessage("");
+                }}
+                placeholder="Opcional: exigido se RAG_ADMIN_TOKEN estiver ativo"
+              />
+              <span className="stat-label">Usado para acessar estatisticas e a reindexacao administrativa.</span>
             </label>
             <button type="submit">Salvar Definicoes</button>
           </form>

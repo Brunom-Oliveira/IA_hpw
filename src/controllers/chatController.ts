@@ -1,11 +1,11 @@
 import { Request, Response } from "express";
 import { RagService } from "../services/ragService";
-import { RagMetadataReindexService } from "../services/ragMetadataReindexService";
+import { RagReindexQueueService } from "../services/ragReindexQueueService";
 
 export class ChatController {
   constructor(
     private readonly ragService: RagService,
-    private readonly ragMetadataReindexService: RagMetadataReindexService,
+    private readonly ragReindexQueueService: RagReindexQueueService,
   ) {}
 
   ask = async (req: Request, res: Response): Promise<void> => {
@@ -72,16 +72,21 @@ export class ChatController {
   };
 
   reindex = async (_req: Request, res: Response): Promise<void> => {
-    try {
-      const result = await this.ragMetadataReindexService.reindexAllCollections();
-      res.json({
-        message: "Reindexacao concluida",
-        ...result,
-      });
-    } catch (error: any) {
-      res.status(500).json({
-        error: error?.message || "Falha ao reindexar metadata do RAG",
-      });
+    const job = this.ragReindexQueueService.enqueue();
+    res.status(202).json({
+      message: "Reindexacao enfileirada",
+      job,
+    });
+  };
+
+  reindexJob = async (req: Request, res: Response): Promise<void> => {
+    const jobId = String(req.params.jobId || "").trim();
+    const job = this.ragReindexQueueService.getJob(jobId);
+    if (!job) {
+      res.status(404).json({ error: "Job de reindexacao nao encontrado" });
+      return;
     }
+
+    res.json({ job });
   };
 }

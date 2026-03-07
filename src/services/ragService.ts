@@ -191,7 +191,9 @@ export class RagService {
       rag_max_output_tokens: number;
     };
     operations: RagOpsStatus["reindex"];
+    jobs: RagOpsStatus["jobs"];
   } {
+    const status = ragOpsStatusService.getStatus();
     return {
       cache: ragQueryCache.stats(),
       config: {
@@ -208,7 +210,8 @@ export class RagService {
         rag_num_ctx: env.ragNumCtx,
         rag_max_output_tokens: env.ragMaxOutputTokens,
       },
-      operations: ragOpsStatusService.getStatus().reindex,
+      operations: status.reindex,
+      jobs: status.jobs,
     };
   }
 

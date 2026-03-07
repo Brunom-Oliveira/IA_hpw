@@ -7,6 +7,20 @@ type ReindexCollectionSummary = {
   updated_points: number;
 };
 
+type ReindexJobStatus = "queued" | "running" | "success" | "error";
+
+export type RagReindexJob = {
+  id: string;
+  status: ReindexJobStatus;
+  created_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+  total_scanned: number;
+  total_updated: number;
+  collections: ReindexCollectionSummary[];
+  error: string | null;
+};
+
 export type RagOpsStatus = {
   reindex: {
     status: "idle" | "running" | "success" | "error";
@@ -17,6 +31,7 @@ export type RagOpsStatus = {
     collections: ReindexCollectionSummary[];
     error: string | null;
   };
+  jobs: RagReindexJob[];
 };
 
 const DEFAULT_STATUS: RagOpsStatus = {
@@ -29,6 +44,7 @@ const DEFAULT_STATUS: RagOpsStatus = {
     collections: [],
     error: null,
   },
+  jobs: [],
 };
 
 export class RagOpsStatusService {
@@ -64,6 +80,26 @@ export class RagOpsStatusService {
         error: null,
       },
     });
+  }
+
+  addJob(job: RagReindexJob): void {
+    const current = this.getStatus();
+    this.writeStatus({
+      ...current,
+      jobs: [job, ...current.jobs].slice(0, 20),
+    });
+  }
+
+  updateJob(jobId: string, patch: Partial<RagReindexJob>): void {
+    const current = this.getStatus();
+    this.writeStatus({
+      ...current,
+      jobs: current.jobs.map((job) => (job.id === jobId ? { ...job, ...patch } : job)),
+    });
+  }
+
+  getJob(jobId: string): RagReindexJob | null {
+    return this.getStatus().jobs.find((job) => job.id === jobId) || null;
   }
 
   markReindexFinished(payload: {
