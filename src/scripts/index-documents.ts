@@ -1,7 +1,7 @@
 import path from "path";
 import { promises as fs } from "fs";
 import pdfParse from "pdf-parse";
-import { ChromaVectorDbService } from "../services/vector-db/chromaVectorDbService";
+import { QdrantVectorDbService } from "../services/vector-db/qdrantVectorDbService";
 import { EmbeddingService } from "../services/llm/embeddingService";
 import { LlmService } from "../services/llm/llmService";
 import { RagService } from "../services/ragService";
@@ -26,7 +26,11 @@ const run = async () => {
   const targetDir = path.resolve(process.cwd(), "data/documents");
   const files = await fs.readdir(targetDir);
 
-  const ragService = new RagService(new ChromaVectorDbService(), new EmbeddingService(), new LlmService());
+  const ragService = new RagService(
+    new QdrantVectorDbService(),
+    new EmbeddingService(),
+    new LlmService(),
+  );
   const docs: Array<{ text: string; metadata: Record<string, string> }> = [];
 
   for (const fileName of files) {
@@ -50,7 +54,9 @@ const run = async () => {
   }
 
   if (docs.length === 0) {
-    console.log("[indexer] Nenhum documento valido encontrado em data/documents");
+    console.log(
+      "[indexer] Nenhum documento valido encontrado em data/documents",
+    );
     return;
   }
 
