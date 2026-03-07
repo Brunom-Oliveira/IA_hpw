@@ -1,16 +1,70 @@
-const { Parser } = require("node-sql-parser");
+import { Parser } from "node-sql-parser";
 
-class SchemaParser {
-  constructor() {
-    this.parser = new Parser();
-  }
+export interface ParsedConstraintReference {
+  schema: string;
+  table_name: string;
+  columns: string[];
+}
 
-  parseSql(sqlText) {
-    let ast;
+export interface ParsedSchemaForeignKey {
+  columns: string[];
+  references: ParsedConstraintReference;
+}
+
+export interface ParsedSchemaColumn {
+  name: string;
+  type: string;
+  default: string | null;
+  not_null: boolean;
+}
+
+export interface ParsedSchemaCheckConstraint {
+  name: string | null;
+  expression: string;
+}
+
+export interface ParsedSchemaTrigger {
+  name: string;
+  timing: string;
+  event: string;
+  body: string;
+}
+
+export interface ParsedSchemaIndex {
+  name: string;
+  unique: boolean;
+  columns: string[];
+}
+
+export interface ParsedSchemaTable {
+  schema: string;
+  table_name: string;
+  full_name: string;
+  columns: ParsedSchemaColumn[];
+  primary_key: string[];
+  foreign_keys: ParsedSchemaForeignKey[];
+  indexes: ParsedSchemaIndex[];
+  triggers: ParsedSchemaTrigger[];
+  check_constraints: ParsedSchemaCheckConstraint[];
+  comments_on_columns: Record<string, string>;
+}
+
+type GenericNode = Record<string, any>;
+
+export class SchemaParser {
+  private readonly parser = new Parser();
+
+  parseSql(sqlText: string): Array<{
+    table: string;
+    columns: Array<{ name: string; type: string }>;
+    primaryKey: string[];
+    foreignKeys: Array<{ field: string; referencedTable: string }>;
+  }> {
+    let ast: GenericNode | GenericNode[];
     try {
-      ast = this.parser.astify(sqlText, { database: "MySQL" });
-    } catch (error) {
-      console.error("[schema][parser] Falha ao fazer parse SQL:", error.message);
+      ast = this.parser.astify(sqlText, { database: "MySQL" }) as GenericNode | GenericNode[];
+    } catch (error: any) {
+      console.error("[schema][parser] Falha ao fazer parse SQL:", error?.message);
       throw new Error("Arquivo SQL invalido para parser");
     }
 
@@ -19,12 +73,12 @@ class SchemaParser {
     return createTables.map((stmt) => this.extractTable(stmt));
   }
 
-  isCreateTable(stmt) {
+  private isCreateTable(stmt: GenericNode): boolean {
     if (!stmt || stmt.type !== "create") return false;
     return String(stmt.keyword || "").toLowerCase() === "table";
   }
 
-  extractTable(stmt) {
+  private extractTable(stmt: GenericNode) {
     const tableName = this.getTableName(stmt.table);
     const defs = Array.isArray(stmt.create_definitions) ? stmt.create_definitions : [];
 
@@ -36,8 +90,8 @@ class SchemaParser {
       }))
       .filter((col) => col.name);
 
-    const primaryKey = [];
-    const foreignKeys = [];
+    const primaryKey: string[] = [];
+    const foreignKeys: Array<{ field: string; referencedTable: string }> = [];
 
     for (const def of defs) {
       const resource = String(def.resource || "").toLowerCase();
@@ -68,7 +122,7 @@ class SchemaParser {
     };
   }
 
-  getTableName(tableNode) {
+  private getTableName(tableNode: any): string {
     if (!tableNode) return "UNKNOWN_TABLE";
     if (typeof tableNode === "string") return tableNode;
     if (Array.isArray(tableNode) && tableNode[0]) {
@@ -77,18 +131,18 @@ class SchemaParser {
     return tableNode.table || tableNode.tableName || "UNKNOWN_TABLE";
   }
 
-  getColumnName(columnNode) {
+  private getColumnName(columnNode: any): string {
     if (!columnNode) return "";
     if (typeof columnNode === "string") return columnNode;
     return columnNode.column || columnNode.name || "";
   }
 
-  getColumnType(definitionNode) {
+  private getColumnType(definitionNode: any): string {
     if (!definitionNode) return "UNKNOWN";
 
     if (typeof definitionNode.dataType === "string") {
       const len = Array.isArray(definitionNode.length) && definitionNode.length.length > 0
-        ? `(${definitionNode.length.map((x) => x.value || x).join(",")})`
+        ? `(${definitionNode.length.map((x: any) => x.value || x).join(",")})`
         : "";
       return `${definitionNode.dataType}${len}`;
     }
@@ -100,28 +154,19 @@ class SchemaParser {
     return definitionNode.type || "UNKNOWN";
   }
 
-  extractConstraintColumns(definition) {
-    const candidates = [];
+  private extractConstraintColumns(definition: GenericNode): string[] {
+    const candidates: any[] = [];
 
-    if (Array.isArray(definition.definition)) {
-      candidates.push(...definition.definition);
-    }
-    if (Array.isArray(definition.columns)) {
-      candidates.push(...definition.columns);
-    }
-    if (Array.isArray(definition.local_key)) {
-      candidates.push(...definition.local_key);
-    }
+    if (Array.isArray(definition.definition)) candidates.push(...definition.definition);
+    if (Array.isArray(definition.columns)) candidates.push(...definition.columns);
+    if (Array.isArray(definition.local_key)) candidates.push(...definition.local_key);
 
     return candidates
-      .map((item) => {
-        if (typeof item === "string") return item;
-        return item.column || item.value || "";
-      })
+      .map((item) => (typeof item === "string" ? item : item.column || item.value || ""))
       .filter(Boolean);
   }
 
-  getReferencedTable(referenceDefinition) {
+  private getReferencedTable(referenceDefinition: GenericNode | undefined): string {
     if (!referenceDefinition) return "";
     if (typeof referenceDefinition.table === "string") return referenceDefinition.table;
     if (Array.isArray(referenceDefinition.table) && referenceDefinition.table[0]) {
@@ -133,6 +178,3 @@ class SchemaParser {
     return "";
   }
 }
-
-module.exports = { SchemaParser };
-

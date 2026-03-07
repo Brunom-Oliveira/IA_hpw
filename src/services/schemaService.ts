@@ -3,38 +3,17 @@ import path from "path";
 import axios from "axios";
 import { env } from "../utils/env";
 import { EmbeddingService } from "./llm/embeddingService";
-import { SchemaTransformer, ParsedSchemaTable as SemanticTable } from "./schemaTransformer";
-
-type LegacySchemaParser = {
-  parseSql(sqlText: string): SemanticTable[];
-};
-
-type UploadParsedTable = {
-  schema: string;
-  table_name: string;
-  columns: unknown[];
-  primary_key: string[];
-  foreign_keys: unknown[];
-  indexes: unknown[];
-  triggers: unknown[];
-  check_constraints: unknown[];
-};
-
-// Mantemos o parser DDL atual como utilitario enquanto migramos a camada HTTP/runtime.
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { SchemaParser } = require("../schema/schema.parser");
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { parseDDL } = require("../sql/sqlParser");
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { transformDDLToDocuments } = require("../sql/ddlTransformer");
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { indexSchemaDocuments } = require("../sql/schemaIndexer");
+import { SchemaTransformer } from "./schemaTransformer";
+import { SchemaParser } from "../schema/schemaParser";
+import { parseDDL, ParsedSchemaTable as DdlParsedSchemaTable } from "../sql/sqlParser";
+import { SchemaDocument, transformDDLToDocuments } from "../sql/ddlTransformer";
+import { indexSchemaDocuments } from "../sql/schemaIndexer";
 
 const SCHEMA_DOCUMENTS_COLLECTION = "schema_documents";
 const SCHEMA_SQL_PATH = process.env.SCHEMA_SQL_PATH || "./docs/schema.sql";
 
 export class SchemaService {
-  private readonly parser: LegacySchemaParser = new SchemaParser() as LegacySchemaParser;
+  private readonly parser = new SchemaParser();
   private readonly transformer = new SchemaTransformer();
   private collectionReady = false;
 
@@ -97,15 +76,15 @@ export class SchemaService {
       checks: number;
     }>;
   }> {
-    const parsed = parseDDL(sql) as { tables: UploadParsedTable[] };
+    const parsed = parseDDL(sql);
     if (!Array.isArray(parsed.tables) || parsed.tables.length === 0) {
       const error = new Error("Nenhuma tabela CREATE TABLE encontrada no script");
       (error as Error & { statusCode?: number }).statusCode = 400;
       throw error;
     }
 
-    const documents = transformDDLToDocuments(parsed) as Array<Record<string, unknown>>;
-    const indexing = await indexSchemaDocuments(documents) as { indexed_points?: number };
+    const documents: SchemaDocument[] = transformDDLToDocuments(parsed);
+    const indexing = await indexSchemaDocuments(documents);
 
     return {
       summary: {
@@ -113,7 +92,7 @@ export class SchemaService {
         documents_generated: documents.length,
         indexed_points: Number(indexing.indexed_points || 0),
       },
-      tables: parsed.tables.map((table) => ({
+      tables: parsed.tables.map((table: DdlParsedSchemaTable) => ({
         schema: table.schema,
         table_name: table.table_name,
         columns: Array.isArray(table.columns) ? table.columns.length : 0,

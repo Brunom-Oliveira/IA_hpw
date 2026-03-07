@@ -78,11 +78,16 @@ Arquivos criados:
 
 - [src/services/schemaService.ts](c:/Users/suporte/IA_Harpiawms/src/services/schemaService.ts)
 - [src/services/schemaTransformer.ts](c:/Users/suporte/IA_Harpiawms/src/services/schemaTransformer.ts)
+- [src/schema/schemaParser.ts](c:/Users/suporte/IA_Harpiawms/src/schema/schemaParser.ts)
+- [src/sql/sqlParser.ts](c:/Users/suporte/IA_Harpiawms/src/sql/sqlParser.ts)
+- [src/sql/ddlTransformer.ts](c:/Users/suporte/IA_Harpiawms/src/sql/ddlTransformer.ts)
+- [src/sql/schemaIndexer.ts](c:/Users/suporte/IA_Harpiawms/src/sql/schemaIndexer.ts)
 
 O que mudou:
 
 - o runtime nao depende mais de `src/schema/schema.ingest.service.js`
 - ingestao do schema e upload DDL passaram a sair da composicao legada
+- parsing, transformacao e indexacao de DDL passaram a usar utilitarios TS nativos
 
 Motivo:
 
@@ -114,6 +119,10 @@ Arquivos removidos:
 - `src/knowledge/knowledge.validator.js`
 - `src/schema/schema.ingest.service.js`
 - `src/schema/schema.transformer.js`
+- `src/schema/schema.parser.js`
+- `src/sql/sqlParser.js`
+- `src/sql/ddlTransformer.js`
+- `src/sql/schemaIndexer.js`
 
 Motivo:
 
@@ -135,16 +144,11 @@ Motivo:
 - services TS
 - compatibilidade preservada sem dualidade arquitetural
 
-## O que ainda ficou para fase futura
+## Estado Final Desta Fase
 
-Arquivos JS ainda usados como utilitarios:
-
-- [src/schema/schema.parser.js](c:/Users/suporte/IA_Harpiawms/src/schema/schema.parser.js)
-- [src/sql/sqlParser.js](c:/Users/suporte/IA_Harpiawms/src/sql/sqlParser.js)
-- [src/sql/ddlTransformer.js](c:/Users/suporte/IA_Harpiawms/src/sql/ddlTransformer.js)
-- [src/sql/schemaIndexer.js](c:/Users/suporte/IA_Harpiawms/src/sql/schemaIndexer.js)
-
-Esses arquivos nao compoem mais uma segunda arquitetura. Eles continuam apenas como utilitarios internos e devem ser migrados em fase posterior.
+- nao existem mais utilitarios JS de schema/DDL no runtime
+- o fluxo de schema foi consolidado integralmente em TypeScript
+- a base esta pronta para a proxima fase: qualidade de resposta e testes
 
 ## Validacao Executada
 

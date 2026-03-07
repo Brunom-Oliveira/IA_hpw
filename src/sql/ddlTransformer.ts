@@ -1,12 +1,26 @@
-function transformDDLToDocuments(parsedDDL) {
-  const tables = Array.isArray(parsedDDL && parsedDDL.tables) ? parsedDDL.tables : [];
-  const documents = [];
+import { ParsedSchemaTable } from "./sqlParser";
+
+export interface SchemaDocument {
+  table_name: string;
+  schema: string;
+  document_type: "schema_overview" | "constraints" | "triggers" | "relationships";
+  related_tables: string[];
+  text: string;
+}
+
+export function transformDDLToDocuments(parsedDDL: { tables?: ParsedSchemaTable[] }): SchemaDocument[] {
+  const tables = Array.isArray(parsedDDL?.tables) ? parsedDDL.tables : [];
+  const documents: SchemaDocument[] = [];
 
   for (const table of tables) {
     const relatedTables = unique(
-      (table.foreign_keys || []).map((fk) => `${fk.references.schema}.${fk.references.table_name}`)
+      (table.foreign_keys || []).map(
+        (fk: ParsedSchemaTable["foreign_keys"][number]) => `${fk.references.schema}.${fk.references.table_name}`
+      )
     );
-    const mainColumns = (table.columns || []).slice(0, 8).map((column) => `${column.name} (${column.type})`);
+    const mainColumns = (table.columns || [])
+      .slice(0, 8)
+      .map((column: ParsedSchemaTable["columns"][number]) => `${column.name} (${column.type})`);
     const purpose = inferPurpose(table.table_name);
 
     documents.push({
@@ -19,9 +33,9 @@ function transformDDLToDocuments(parsedDDL) {
         `Finalidade inferida: ${purpose}`,
         `Primary Key: ${(table.primary_key || []).join(", ") || "Nao definida"}`,
         "Campos principais:",
-        ...(mainColumns.length ? mainColumns.map((item) => `- ${item}`) : ["- Nao identificados"]),
+        ...(mainColumns.length ? mainColumns.map((item: string) => `- ${item}`) : ["- Nao identificados"]),
         "Relacionamentos:",
-        ...(relatedTables.length ? relatedTables.map((item) => `- ${item}`) : ["- Nao identificados"]),
+        ...(relatedTables.length ? relatedTables.map((item: string) => `- ${item}`) : ["- Nao identificados"]),
       ].join("\n"),
     });
 
@@ -34,7 +48,9 @@ function transformDDLToDocuments(parsedDDL) {
         `Tabela: ${table.schema}.${table.table_name}`,
         "CHECK constraints e validacoes:",
         ...(table.check_constraints || []).length
-          ? table.check_constraints.map((item) => `- ${item.name || "CHECK"}: ${item.expression}`)
+          ? table.check_constraints.map(
+              (item: ParsedSchemaTable["check_constraints"][number]) => `- ${item.name || "CHECK"}: ${item.expression}`
+            )
           : ["- Nenhuma CHECK constraint detectada"],
       ].join("\n"),
     });
@@ -53,7 +69,7 @@ function transformDDLToDocuments(parsedDDL) {
             `Quando executa: ${trigger.timing}`,
             `Evento: ${trigger.event}`,
             "Tabelas impactadas:",
-            ...(impactedTables.length ? impactedTables.map((item) => `- ${item}`) : ["- Nao identificadas"]),
+            ...(impactedTables.length ? impactedTables.map((item: string) => `- ${item}`) : ["- Nao identificadas"]),
             "Regras principais resumidas:",
             summarizeTrigger(trigger.body),
           ].join("\n"),
@@ -83,10 +99,8 @@ function transformDDLToDocuments(parsedDDL) {
         "Relacoes de chave estrangeira:",
         ...(table.foreign_keys || []).length
           ? table.foreign_keys.map(
-              (fk) =>
-                `- (${fk.columns.join(", ")}) -> ${fk.references.schema}.${fk.references.table_name} (${fk.references.columns.join(
-                  ", "
-                )})`
+              (fk: ParsedSchemaTable["foreign_keys"][number]) =>
+                `- (${fk.columns.join(", ")}) -> ${fk.references.schema}.${fk.references.table_name} (${fk.references.columns.join(", ")})`
             )
           : ["- Nenhuma FK detectada"],
       ].join("\n"),
@@ -96,7 +110,7 @@ function transformDDLToDocuments(parsedDDL) {
   return documents;
 }
 
-function inferPurpose(tableName) {
+function inferPurpose(tableName: string): string {
   const name = String(tableName || "").toLowerCase();
   if (name.includes("log") || name.includes("audit")) return "Registro historico e trilha de auditoria";
   if (name.includes("item") || name.includes("detail")) return "Detalhamento de entidades principais";
@@ -106,10 +120,10 @@ function inferPurpose(tableName) {
   return "Persistencia de dados operacionais da aplicacao";
 }
 
-function extractImpactedTables(triggerBody, currentTableName) {
+function extractImpactedTables(triggerBody: string, currentTableName: string): string[] {
   const body = String(triggerBody || "");
   const regex = /\b(into|update|from|join)\s+("?[\w$#]+"?(?:\."?[\w$#]+"?)?)/gi;
-  const tables = [];
+  const tables: string[] = [];
   let match = regex.exec(body);
 
   while (match) {
@@ -124,25 +138,17 @@ function extractImpactedTables(triggerBody, currentTableName) {
   return unique(tables);
 }
 
-function summarizeTrigger(triggerBody) {
+function summarizeTrigger(triggerBody: string): string {
   const compact = String(triggerBody || "").replace(/\s+/g, " ").trim();
   if (!compact) return "- Corpo nao disponivel.";
   const summary = compact.slice(0, 520);
   return `- ${summary}${compact.length > 520 ? "..." : ""}`;
 }
 
-function cleanupIdentifier(value) {
-  return String(value || "")
-    .replace(/"/g, "")
-    .replace(/\s+/g, "")
-    .trim();
+function cleanupIdentifier(value: string): string {
+  return String(value || "").replace(/"/g, "").replace(/\s+/g, "").trim();
 }
 
-function unique(list) {
+function unique(list: string[]): string[] {
   return Array.from(new Set((list || []).filter(Boolean)));
 }
-
-module.exports = {
-  transformDDLToDocuments,
-};
-

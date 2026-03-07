@@ -1,4 +1,8 @@
-function parseDDL(sqlText) {
+import { ParsedSchemaCheckConstraint, ParsedSchemaColumn, ParsedSchemaForeignKey, ParsedSchemaIndex, ParsedSchemaTable as ParserTable, ParsedSchemaTrigger } from "../schema/schemaParser";
+
+export interface ParsedSchemaTable extends ParserTable {}
+
+export function parseDDL(sqlText: string): { tables: ParsedSchemaTable[] } {
   const source = String(sqlText || "");
   const tableBlocks = extractCreateTableBlocks(source);
   const tables = tableBlocks.map(parseCreateTableBlock);
@@ -14,8 +18,8 @@ function parseDDL(sqlText) {
   };
 }
 
-function extractCreateTableBlocks(sqlText) {
-  const blocks = [];
+function extractCreateTableBlocks(sqlText: string): string[] {
+  const blocks: string[] = [];
   const regex = /create\s+table\s+/gi;
   let match = regex.exec(sqlText);
 
@@ -47,7 +51,7 @@ function extractCreateTableBlocks(sqlText) {
   return blocks;
 }
 
-function parseCreateTableBlock(block) {
+function parseCreateTableBlock(block: string): ParsedSchemaTable {
   const headerMatch = block.match(/create\s+table\s+([^\s(]+)/i);
   const fullNameRaw = cleanupIdentifier(headerMatch ? headerMatch[1] : "UNKNOWN.UNKNOWN");
   const { schema, table } = splitSchemaAndTable(fullNameRaw);
@@ -57,10 +61,10 @@ function parseCreateTableBlock(block) {
   const inside = contentStart >= 0 && contentEnd > contentStart ? block.slice(contentStart + 1, contentEnd) : "";
   const definitions = splitTopLevelByComma(inside);
 
-  const columns = [];
-  const primaryKey = [];
-  const foreignKeys = [];
-  const checkConstraints = [];
+  const columns: ParsedSchemaColumn[] = [];
+  const primaryKey: string[] = [];
+  const foreignKeys: ParsedSchemaForeignKey[] = [];
+  const checkConstraints: ParsedSchemaCheckConstraint[] = [];
 
   for (const rawDef of definitions) {
     const definition = rawDef.trim();
@@ -113,7 +117,7 @@ function parseCreateTableBlock(block) {
   };
 }
 
-function parseColumnDefinition(definition) {
+function parseColumnDefinition(definition: string): ParsedSchemaColumn | null {
   const match = definition.match(/^("?[\w$#]+"?)\s+(.+)$/i);
   if (!match) return null;
 
@@ -131,7 +135,7 @@ function parseColumnDefinition(definition) {
   };
 }
 
-function parseForeignKeyDefinition(definition) {
+function parseForeignKeyDefinition(definition: string): ParsedSchemaForeignKey | null {
   const localColumns = extractColumnsFromConstraint(definition);
   const refMatch = definition.match(/\breferences\s+([^\s(]+)\s*\(([^)]+)\)/i);
   if (!refMatch) return null;
@@ -149,7 +153,7 @@ function parseForeignKeyDefinition(definition) {
   };
 }
 
-function parseInlineForeignKey(definition, columnName) {
+function parseInlineForeignKey(definition: string, columnName: string): ParsedSchemaForeignKey | null {
   const refMatch = definition.match(/\breferences\s+([^\s(]+)\s*\(([^)]+)\)/i);
   if (!refMatch) return null;
   const refFull = cleanupIdentifier(refMatch[1]);
@@ -164,7 +168,7 @@ function parseInlineForeignKey(definition, columnName) {
   };
 }
 
-function parseCheckConstraint(definition) {
+function parseCheckConstraint(definition: string): ParsedSchemaCheckConstraint {
   const expressionMatch = definition.match(/\bcheck\s*\(([\s\S]*?)\)/i);
   const nameMatch = definition.match(/^constraint\s+("?[\w$#]+"?)/i);
   return {
@@ -173,7 +177,7 @@ function parseCheckConstraint(definition) {
   };
 }
 
-function attachAlterTableConstraints(sqlText, tableMap) {
+function attachAlterTableConstraints(sqlText: string, tableMap: Map<string, ParsedSchemaTable>): void {
   const regex = /alter\s+table\s+([^\s]+)\s+add\s+([\s\S]*?);/gi;
   let match = regex.exec(sqlText);
 
@@ -186,9 +190,7 @@ function attachAlterTableConstraints(sqlText, tableMap) {
     }
 
     const clause = match[2].trim();
-    const normalizedClause = clause
-      .replace(/^\(\s*/, "")
-      .replace(/\)\s*$/m, "");
+    const normalizedClause = clause.replace(/^\(\s*/, "").replace(/\)\s*$/m, "");
     const defs = splitTopLevelByComma(normalizedClause);
 
     for (const rawDef of defs) {
@@ -227,12 +229,11 @@ function attachAlterTableConstraints(sqlText, tableMap) {
     }
 
     table.check_constraints = uniqueChecks(table.check_constraints);
-
     match = regex.exec(sqlText);
   }
 }
 
-function attachIndexes(sqlText, tableMap) {
+function attachIndexes(sqlText: string, tableMap: Map<string, ParsedSchemaTable>): void {
   const regex = /create\s+(unique\s+)?index\s+("?[\w$#]+"?)\s+on\s+([^\s(]+)\s*\(([^)]+)\)\s*;/gi;
   let match = regex.exec(sqlText);
 
@@ -252,7 +253,7 @@ function attachIndexes(sqlText, tableMap) {
   }
 }
 
-function attachTriggers(sqlText, tableMap) {
+function attachTriggers(sqlText: string, tableMap: Map<string, ParsedSchemaTable>): void {
   const blocks = sqlText.match(/create(?:\s+or\s+replace)?\s+trigger[\s\S]*?end\s*;\/?/gi) || [];
   for (const block of blocks) {
     const header = block.match(
@@ -276,7 +277,7 @@ function attachTriggers(sqlText, tableMap) {
   }
 }
 
-function attachColumnComments(sqlText, tableMap) {
+function attachColumnComments(sqlText: string, tableMap: Map<string, ParsedSchemaTable>): void {
   const regex = /comment\s+on\s+column\s+([^\s]+)\.([^\s]+)\s+is\s+'([^']*)'\s*;/gi;
   let match = regex.exec(sqlText);
 
@@ -292,8 +293,8 @@ function attachColumnComments(sqlText, tableMap) {
   }
 }
 
-function splitTopLevelByComma(text) {
-  const parts = [];
+function splitTopLevelByComma(text: string): string[] {
+  const parts: string[] = [];
   let current = "";
   let depth = 0;
   let inSingleQuote = false;
@@ -317,13 +318,13 @@ function splitTopLevelByComma(text) {
   return parts;
 }
 
-function extractColumnsFromConstraint(definition) {
+function extractColumnsFromConstraint(definition: string): string[] {
   const match = definition.match(/\(([^)]+)\)/);
   if (!match) return [];
   return match[1].split(",").map((part) => cleanupIdentifier(part.trim()));
 }
 
-function splitSchemaAndTable(fullName) {
+function splitSchemaAndTable(fullName: string): { schema: string; table: string } {
   const cleaned = cleanupIdentifier(fullName);
   const parts = cleaned.split(".");
   if (parts.length === 1) {
@@ -332,48 +333,41 @@ function splitSchemaAndTable(fullName) {
   return { schema: parts[0], table: parts[1] };
 }
 
-function cleanupIdentifier(value) {
-  return String(value || "")
-    .replace(/"/g, "")
-    .replace(/\s+/g, "")
-    .trim();
+function cleanupIdentifier(value: string): string {
+  return String(value || "").replace(/"/g, "").replace(/\s+/g, "").trim();
 }
 
-function findTable(tableMap, tableFullName) {
+function findTable(tableMap: Map<string, ParsedSchemaTable>, tableFullName: string): ParsedSchemaTable | null {
   const cleaned = cleanupIdentifier(tableFullName).toUpperCase();
-  if (tableMap.has(cleaned)) return tableMap.get(cleaned);
+  if (tableMap.has(cleaned)) return tableMap.get(cleaned) || null;
 
   const tableOnly = cleaned.split(".").pop();
   for (const [key, value] of tableMap.entries()) {
-    if (key.endsWith(`.${tableOnly}`)) return value;
+    if (tableOnly && key.endsWith(`.${tableOnly}`)) return value;
   }
   return null;
 }
 
-function unique(list) {
+function unique(list: string[]): string[] {
   return Array.from(new Set((list || []).filter(Boolean)));
 }
 
-function uniqueChecks(checks) {
+function uniqueChecks(checks: ParsedSchemaCheckConstraint[]): ParsedSchemaCheckConstraint[] {
   const validChecks = Array.isArray(checks) ? checks : [];
-  const seen = new Set();
-  const uniqueList = [];
+  const seen = new Set<string>();
+  const uniqueList: ParsedSchemaCheckConstraint[] = [];
 
   for (const check of validChecks) {
-    const expression = String(check && check.expression ? check.expression : "").trim();
+    const expression = String(check?.expression || "").trim();
     if (!expression) continue;
     const key = expression.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
     uniqueList.push({
-      name: check && check.name ? check.name : null,
+      name: check?.name || null,
       expression,
     });
   }
 
   return uniqueList;
 }
-
-module.exports = {
-  parseDDL,
-};

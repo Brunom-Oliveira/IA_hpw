@@ -100,12 +100,19 @@ Responsavel por:
 
 - [src/services/schemaService.ts](c:/Users/suporte/IA_Harpiawms/src/services/schemaService.ts)
 - [src/services/schemaTransformer.ts](c:/Users/suporte/IA_Harpiawms/src/services/schemaTransformer.ts)
+- [src/schema/schemaParser.ts](c:/Users/suporte/IA_Harpiawms/src/schema/schemaParser.ts)
+- [src/sql/sqlParser.ts](c:/Users/suporte/IA_Harpiawms/src/sql/sqlParser.ts)
+- [src/sql/ddlTransformer.ts](c:/Users/suporte/IA_Harpiawms/src/sql/ddlTransformer.ts)
+- [src/sql/schemaIndexer.ts](c:/Users/suporte/IA_Harpiawms/src/sql/schemaIndexer.ts)
 
 Responsavel por:
 
 - ingestao do `docs/schema.sql`
 - upload de DDL para indexacao
 - geracao de texto semantico de tabelas
+- parsing estrutural de SQL/DDL
+- transformacao de DDL em documentos semanticos
+- indexacao de documentos de schema no Qdrant
 
 ### LLM / Embeddings / Vector DB / Whisper
 
@@ -135,27 +142,20 @@ Arquivos removidos:
 - `src/knowledge/knowledge.validator.js`
 - `src/schema/schema.ingest.service.js`
 - `src/schema/schema.transformer.js`
+- `src/schema/schema.parser.js`
+- `src/sql/sqlParser.js`
+- `src/sql/ddlTransformer.js`
+- `src/sql/schemaIndexer.js`
 
 Esses arquivos deixaram de ser necessarios depois da consolidacao da composicao e da migracao dos dominios de conhecimento e schema para TS.
-
-## Legado Ainda Mantido Como Utilitario
-
-Ainda existem utilitarios JS que continuam sendo consumidos por services TS:
-
-- [src/schema/schema.parser.js](c:/Users/suporte/IA_Harpiawms/src/schema/schema.parser.js)
-- [src/sql/sqlParser.js](c:/Users/suporte/IA_Harpiawms/src/sql/sqlParser.js)
-- [src/sql/ddlTransformer.js](c:/Users/suporte/IA_Harpiawms/src/sql/ddlTransformer.js)
-- [src/sql/schemaIndexer.js](c:/Users/suporte/IA_Harpiawms/src/sql/schemaIndexer.js)
-
-Esses arquivos nao fazem mais parte da composicao HTTP. Eles sao utilitarios internos de dominio e podem ser migrados em uma fase posterior sem alterar contratos externos.
 
 ## Decisoes Arquiteturais
 
 1. O runtime deve ter uma unica arvore de composicao.
 2. Compatibilidade de rotas deve ser preservada no router TS, e nao por boot paralelo.
 3. Dominio central deve ficar em TypeScript.
-4. Utilitarios legados podem sobreviver temporariamente, desde que nao componham uma segunda aplicacao.
+4. Utilitarios de dominio devem seguir a pilha TypeScript oficial.
 
 ## Proxima Etapa Recomendada
 
-Migrar os utilitarios JS restantes de schema/SQL para TypeScript e alinhar a suite de testes ao contrato atual do sistema.
+Alinhar a suite de testes ao contrato atual do sistema e seguir para a fase de melhoria de qualidade do RAG.

@@ -5,22 +5,15 @@ import { EmbeddingService } from "./llm/embeddingService";
 import { LlmPort } from "../types";
 import { KnowledgeItem, KnowledgeItemInput, KnowledgeTransformer } from "./knowledgeTransformer";
 import { KnowledgeValidator } from "./knowledgeValidator";
+import { SchemaParser } from "../schema/schemaParser";
+import { parseDDL, ParsedSchemaTable as DdlParsedSchemaTable } from "../sql/sqlParser";
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { SchemaParser } = require("../schema/schema.parser");
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { parseDDL } = require("../sql/sqlParser");
-
-type ParsedSchemaTable = {
+type LegacyParsedSchemaTable = {
   table: string;
   columns?: Array<{ name: string; type: string }>;
   primaryKey?: string[];
   foreignKeys?: Array<{ field: string; referencedTable: string }>;
   check_constraints?: Array<{ expression?: string }>;
-};
-
-type LegacySchemaParser = {
-  parseSql(sqlText: string): ParsedSchemaTable[];
 };
 
 type ExtractedAudioPayload = {
@@ -35,7 +28,7 @@ export class KnowledgeService {
   private collectionReady = false;
   private readonly transformer = new KnowledgeTransformer();
   private readonly validator = new KnowledgeValidator();
-  private readonly schemaParser: LegacySchemaParser = new SchemaParser() as LegacySchemaParser;
+  private readonly schemaParser = new SchemaParser();
 
   constructor(
     private readonly embeddingService: EmbeddingService,
@@ -228,19 +221,21 @@ export class KnowledgeService {
     return vector.concat(new Array(env.qdrantVectorSize - vector.length).fill(0));
   }
 
-  private parseSqlWithFallback(sqlText: string): ParsedSchemaTable[] {
+  private parseSqlWithFallback(sqlText: string): LegacyParsedSchemaTable[] {
     try {
       return this.schemaParser.parseSql(sqlText);
     } catch {
-      const parsed = parseDDL(sqlText) as { tables?: Array<Record<string, unknown>> };
-      const tables = Array.isArray(parsed?.tables) ? parsed.tables : [];
+      const parsed = parseDDL(sqlText);
+      const tables = Array.isArray(parsed.tables) ? parsed.tables : [];
       return tables.map((table) => ({
         table: String(table.table_name || ""),
-        columns: Array.isArray(table.columns) ? table.columns as Array<{ name: string; type: string }> : [],
-        primaryKey: Array.isArray(table.primary_key) ? table.primary_key as string[] : [],
-        check_constraints: Array.isArray(table.check_constraints) ? table.check_constraints as Array<{ expression?: string }> : [],
+        columns: Array.isArray(table.columns) ? table.columns.map((column) => ({ name: column.name, type: column.type })) : [],
+        primaryKey: Array.isArray(table.primary_key) ? table.primary_key : [],
+        check_constraints: Array.isArray(table.check_constraints)
+          ? table.check_constraints.map((check) => ({ expression: check.expression }))
+          : [],
         foreignKeys: Array.isArray(table.foreign_keys)
-          ? (table.foreign_keys as Array<{ columns?: string[]; references?: { schema?: string; table_name?: string } }>).map((fk) => ({
+          ? table.foreign_keys.map((fk: DdlParsedSchemaTable["foreign_keys"][number]) => ({
               field: Array.isArray(fk.columns) ? String(fk.columns[0] || "") : "",
               referencedTable: `${fk.references?.schema || ""}.${fk.references?.table_name || ""}`.replace(/^\./, ""),
             }))
