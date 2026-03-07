@@ -1,6 +1,7 @@
 import pdfParse from "pdf-parse";
 import { RagService } from "./ragService";
 import { env } from "../utils/env";
+import { buildRagMetadata } from "../utils/ragMetadata";
 
 export class PdfIngestService {
   constructor(private readonly ragService: RagService) {}
@@ -19,16 +20,17 @@ export class PdfIngestService {
     const chunks = splitText(rawText, env.chunkSize, env.chunkOverlap);
     const documents = chunks.map((chunk, index) => ({
       text: chunk,
-      metadata: {
+      metadata: buildRagMetadata({
         source: file.originalname,
         title: file.originalname,
         category: "manual_pdf",
         system: "HARPIA WMS",
         module: "PDF",
-        file_name: file.originalname,
+        fileName: file.originalname,
         chunk: index + 1,
-        total_chunks: chunks.length,
-      },
+        totalChunks: chunks.length,
+        text: chunk,
+      }),
     }));
 
     const ids = await this.ragService.insertDocuments(documents);

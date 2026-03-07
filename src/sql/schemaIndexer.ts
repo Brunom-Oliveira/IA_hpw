@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import { env } from "../utils/env";
 import { EmbeddingService } from "../services/llm/embeddingService";
 import { SchemaDocument } from "./ddlTransformer";
+import { buildRagMetadata, extractTableSuffix } from "../utils/ragMetadata";
 
 const COLLECTION_NAME = "schema_knowledge";
 
@@ -62,14 +63,26 @@ export async function indexSchemaDocuments(documents: SchemaDocument[]): Promise
         id: randomUUID(),
         vector,
         payload: {
-          table_name: doc.table_name,
-          schema: doc.schema,
-          document_type: doc.document_type,
-          related_tables: doc.related_tables || [],
           created_at: createdAt,
           chunk_index: chunkIndex,
           chunks_total: chunks.length,
           text: textChunk,
+          schema: doc.schema,
+          related_tables: doc.related_tables || [],
+          ...buildRagMetadata({
+            title: buildSchemaDocumentTitle(doc),
+            source: `${doc.table_name}.SQL`,
+            category: "schema",
+            system: `${doc.table_name}.SQL`,
+            module: "schema",
+            fileName: `${doc.table_name}.SQL`,
+            text: textChunk,
+            tableName: doc.table_name,
+            relatedTables: doc.related_tables || [],
+            documentType: doc.document_type,
+            section: mapSectionFromDocumentType(doc.document_type),
+          }),
+          table_suffix: extractTableSuffix(doc.table_name),
         },
       });
     }
@@ -119,4 +132,30 @@ function normalizeVector(vector: number[]): number[] {
   if (vector.length === env.qdrantVectorSize) return vector;
   if (vector.length > env.qdrantVectorSize) return vector.slice(0, env.qdrantVectorSize);
   return vector.concat(new Array(env.qdrantVectorSize - vector.length).fill(0));
+}
+
+function buildSchemaDocumentTitle(doc: SchemaDocument): string {
+  switch (doc.document_type) {
+    case "constraints":
+      return `Constraints da tabela ${doc.table_name}`;
+    case "triggers":
+      return `Triggers da tabela ${doc.table_name}`;
+    case "relationships":
+      return `Relacionamentos da tabela ${doc.table_name}`;
+    default:
+      return `Estrutura da tabela ${doc.table_name}`;
+  }
+}
+
+function mapSectionFromDocumentType(documentType: SchemaDocument["document_type"]): string {
+  switch (documentType) {
+    case "constraints":
+      return "constraints";
+    case "triggers":
+      return "triggers";
+    case "relationships":
+      return "relationships";
+    default:
+      return "schema_overview";
+  }
 }

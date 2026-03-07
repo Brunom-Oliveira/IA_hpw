@@ -8,6 +8,8 @@ import { SchemaParser } from "../schema/schemaParser";
 import { parseDDL, ParsedSchemaTable as DdlParsedSchemaTable } from "../sql/sqlParser";
 import { SchemaDocument, transformDDLToDocuments } from "../sql/ddlTransformer";
 import { indexSchemaDocuments } from "../sql/schemaIndexer";
+import { buildRagMetadata, extractTableSuffix } from "../utils/ragMetadata";
+import { ragQueryCache } from "./ragQueryCache";
 
 const SCHEMA_DOCUMENTS_COLLECTION = "schema_documents";
 const SCHEMA_SQL_PATH = process.env.SCHEMA_SQL_PATH || "./docs/schema.sql";
@@ -45,16 +47,29 @@ export class SchemaService {
         id: `${tableDef.table}-${Date.now()}-${Math.floor(Math.random() * 1e9)}`,
         vector: normalizedVector,
         payload: {
-          category: "schema",
-          table: tableDef.table,
-          text: semanticText,
           created_at: createdAt,
+          text: semanticText,
+          table: tableDef.table,
+          ...buildRagMetadata({
+            category: "schema",
+            title: `Estrutura da tabela ${tableDef.table}`,
+            source: path.basename(sql.path),
+            system: path.basename(sql.path),
+            module: "schema",
+            fileName: path.basename(sql.path),
+            text: semanticText,
+            tableName: tableDef.table,
+            relatedTables: (tableDef.foreignKeys || []).map((fk) => fk.referencedTable),
+            documentType: "schema_table",
+          }),
+          table_suffix: extractTableSuffix(tableDef.table),
         },
       });
       indexedTables.push(tableDef.table);
     }
 
     await axios.put(`${env.qdrantUrl}/collections/${SCHEMA_DOCUMENTS_COLLECTION}/points`, { points });
+    ragQueryCache.clear();
 
     return {
       file: sql.path,
@@ -85,6 +100,7 @@ export class SchemaService {
 
     const documents: SchemaDocument[] = transformDDLToDocuments(parsed);
     const indexing = await indexSchemaDocuments(documents);
+    ragQueryCache.clear();
 
     return {
       summary: {

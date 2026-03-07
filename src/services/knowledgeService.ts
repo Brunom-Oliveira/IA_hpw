@@ -7,6 +7,8 @@ import { KnowledgeItem, KnowledgeItemInput, KnowledgeTransformer } from "./knowl
 import { KnowledgeValidator } from "./knowledgeValidator";
 import { SchemaParser } from "../schema/schemaParser";
 import { parseDDL, ParsedSchemaTable as DdlParsedSchemaTable } from "../sql/sqlParser";
+import { buildRagMetadata, extractPrimaryTableName } from "../utils/ragMetadata";
+import { ragQueryCache } from "./ragQueryCache";
 
 type LegacyParsedSchemaTable = {
   table: string;
@@ -199,18 +201,27 @@ export class KnowledgeService {
       id,
       vector,
       payload: {
-        category: structuredData.category,
-        system: structuredData.system,
-        module: structuredData.module,
-        tables_related: structuredData.tables_related || [],
         created_at: createdAt,
-        title: structuredData.title,
-        tags: structuredData.tags || [],
         text,
+        ...buildRagMetadata({
+          category: structuredData.category,
+          system: structuredData.system,
+          module: structuredData.module,
+          title: structuredData.title,
+          source: structuredData.title || structuredData.system || "knowledge-item",
+          text,
+          tableName: structuredData.tables_related[0] || extractPrimaryTableName(text),
+          relatedTables: structuredData.tables_related || [],
+          tags: structuredData.tags || [],
+          documentType: structuredData.category === "schema" ? "schema_table" : undefined,
+        }),
+        tables_related: structuredData.tables_related || [],
+        tags: structuredData.tags || [],
       },
     };
 
     await axios.put(`${env.qdrantUrl}/collections/${env.qdrantCollection}/points`, { points: [point] });
+    ragQueryCache.clear();
     return { id, payload: point.payload };
   }
 

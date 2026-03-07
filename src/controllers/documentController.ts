@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { promises as fs } from "node:fs";
 import { RagService } from "../services/ragService";
+import { buildRagMetadata } from "../utils/ragMetadata";
 
 const MANUAL_CHUNK_SIZE = Number(process.env.MANUAL_UPLOAD_CHUNK_SIZE || 2500);
 const MANUAL_CHUNK_OVERLAP = Number(process.env.MANUAL_UPLOAD_CHUNK_OVERLAP || 250);
@@ -123,16 +124,17 @@ export class DocumentController {
 
     const documents = chunks.map((chunk, index) => ({
       text: chunk,
-      metadata: {
+      metadata: buildRagMetadata({
         source,
         title,
         category: "manual",
         system: options.system,
         module: options.module,
-        file_name: originalName,
+        fileName: originalName,
         chunk: index + 1,
-        total_chunks: chunks.length,
-      },
+        totalChunks: chunks.length,
+        text: chunk,
+      }),
     }));
 
     const ids = await this.ragService.insertDocuments(documents);

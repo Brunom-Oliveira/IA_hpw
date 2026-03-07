@@ -72,6 +72,9 @@ Essas rotas agora sao atendidas por controllers TS e nao mais por routers JS ind
 ### RAG
 
 - [src/services/ragService.ts](c:/Users/suporte/IA_Harpiawms/src/services/ragService.ts)
+- [src/services/ragQueryCache.ts](c:/Users/suporte/IA_Harpiawms/src/services/ragQueryCache.ts)
+- [src/services/ragMetadataReindexService.ts](c:/Users/suporte/IA_Harpiawms/src/services/ragMetadataReindexService.ts)
+- [src/utils/ragMetadata.ts](c:/Users/suporte/IA_Harpiawms/src/utils/ragMetadata.ts)
 
 Responsavel por:
 
@@ -81,6 +84,8 @@ Responsavel por:
 - montagem de contexto
 - geracao de resposta
 - streaming de resposta
+- cache temporario de consultas repetidas
+- reindexacao de metadata semantica no Qdrant
 
 ### Conhecimento
 
@@ -161,6 +166,7 @@ Esses arquivos deixaram de ser necessarios depois da consolidacao da composicao 
 Documento:
 
 - [docs/TESTING.md](c:/Users/suporte/IA_Harpiawms/docs/TESTING.md)
+- [docs/RAG_QUALITY.md](c:/Users/suporte/IA_Harpiawms/docs/RAG_QUALITY.md)
 
 Estado atual:
 
@@ -168,6 +174,23 @@ Estado atual:
 - nao existem mais testes dependentes de services removidos do backend
 - o comportamento critico de filtro de tabela no RAG passou a ter cobertura automatizada
 
+## Qualidade do RAG
+
+Documento:
+
+- [docs/RAG_QUALITY.md](c:/Users/suporte/IA_Harpiawms/docs/RAG_QUALITY.md)
+
+Estado atual:
+
+- o RAG passou a usar recuperacao ampliada seguida de curadoria
+- perguntas de tabela usam filtro estrito por metadata
+- o contexto final privilegia diversidade de fonte e aderencia ao tipo da pergunta
+- quando nao ha evidencia suficiente, o sistema responde sem acionar o LLM
+- consultas repetidas reutilizam cache em memoria por TTL
+- existe script operacional para reindexar metadata antiga no Qdrant
+
 ## Proxima Etapa Recomendada
 
-Seguir para a fase de melhoria de qualidade do RAG, agora com base arquitetural e validacao automatizada minima consistentes.
+1. Executar a reindexacao em producao para aplicar a metadata nova nas colecoes ja existentes.
+2. Ampliar testes de `KnowledgeService` e `SchemaService`.
+3. Evoluir o cache para invalidacao seletiva por colecao e fonte.

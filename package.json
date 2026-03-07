@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "tsc --noEmit",
-    "index:docs": "tsx src/scripts/index-documents.ts"
+    "index:docs": "tsx src/scripts/index-documents.ts",
+    "reindex:rag-metadata": "tsx src/scripts/reindex-rag-metadata.ts"
   },
   "keywords": [
     "nodejs",
