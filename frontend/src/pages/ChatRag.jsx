@@ -1,17 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import api from "../api";
 
 export default function ChatRag() {
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [messages, setMessages] = useState([]);
+  const [ragStats, setRagStats] = useState(null);
   const [status, setStatus] = useState({
     phase: "",
     startedAt: 0,
     elapsedMs: 0,
+    lastHeartbeatAt: 0,
   });
   const chatBoxRef = useRef(null);
+  const activeRequestRef = useRef(null);
   const chatTimeoutMs = Number(import.meta.env.VITE_CHAT_TIMEOUT_MS || 420000);
 
   const topK = useMemo(() => {
@@ -32,6 +36,10 @@ export default function ChatRag() {
 
     return () => clearInterval(timer);
   }, [loading, status.startedAt]);
+
+  useEffect(() => {
+    loadRagStats();
+  }, []);
 
   useEffect(() => {
     if (!chatBoxRef.current) return;
@@ -56,6 +64,7 @@ export default function ChatRag() {
       phase: "Iniciando consulta...",
       startedAt,
       elapsedMs: 0,
+      lastHeartbeatAt: startedAt,
     });
 
     const userMessage = {
@@ -91,6 +100,7 @@ export default function ChatRag() {
 
     try {
       const controller = new AbortController();
+      activeRequestRef.current = controller;
       const timeoutId = setTimeout(() => controller.abort(), chatTimeoutMs);
       const response = await fetch(resolveChatEndpoint(), {
         method: "POST",
@@ -125,6 +135,23 @@ export default function ChatRag() {
       const handleServerChunk = (payload) => {
         if (!payload || typeof payload !== "object") return;
         if (payload.error) throw new Error(String(payload.error));
+
+        if (payload.type === "heartbeat") {
+          setStatus((prev) => ({
+            ...prev,
+            lastHeartbeatAt: Number(payload.ts || Date.now()),
+          }));
+          return;
+        }
+
+        if (payload.type === "status") {
+          setStatus((prev) => ({
+            ...prev,
+            phase: String(payload.phase || prev.phase || "Processando..."),
+            lastHeartbeatAt: Date.now(),
+          }));
+          return;
+        }
 
         if (typeof payload.context === "string" || Array.isArray(payload.sources)) {
           applyPartialMessage({
@@ -182,6 +209,7 @@ export default function ChatRag() {
         )
       );
       setStatus((prev) => ({ ...prev, phase: "Resposta pronta." }));
+      loadRagStats();
     } catch (err) {
       setMessages((prev) =>
         prev.map((m) =>
@@ -191,15 +219,26 @@ export default function ChatRag() {
       setError(err?.message || "Falha ao consultar o RAG.");
       setStatus((prev) => ({ ...prev, phase: "Falha ao consultar o servidor." }));
     } finally {
+      activeRequestRef.current = null;
       phaseTimers.forEach((id) => clearTimeout(id));
       setLoading(false);
     }
   }
 
+  async function loadRagStats() {
+    try {
+      const { data } = await api.get("/api/rag/stats");
+      setRagStats(data);
+    } catch {
+      setRagStats(null);
+    }
+  }
+
   function clearChat() {
+    activeRequestRef.current?.abort?.();
     setMessages([]);
     setError("");
-    setStatus({ phase: "", startedAt: 0, elapsedMs: 0 });
+    setStatus({ phase: "", startedAt: 0, elapsedMs: 0, lastHeartbeatAt: 0 });
   }
 
   const elapsedSeconds = Math.floor(status.elapsedMs / 1000);
@@ -289,6 +328,14 @@ export default function ChatRag() {
           <p className="chat-hint">
             Top K: <strong>{topK}</strong> - <Link to="/settings">Ajustar nas configuracoes</Link>
           </p>
+          {ragStats && (
+            <div className="chat-runtime-strip">
+              <span>Modelo: <strong>{ragStats.runtime?.llm_model || "-"}</strong></span>
+              <span>Cache: <strong>{ragStats.cache?.size ?? 0}</strong></span>
+              <span>Janela: <strong>{ragStats.runtime?.rag_num_ctx ?? 0}</strong></span>
+              <span>Ultimo heartbeat: <strong>{status.lastHeartbeatAt ? `${Math.max(0, Math.floor((Date.now() - status.lastHeartbeatAt) / 1000))}s` : "-"}</strong></span>
+            </div>
+          )}
         </form>
       </div>
 

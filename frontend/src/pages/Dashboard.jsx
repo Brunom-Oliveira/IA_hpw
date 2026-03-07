@@ -6,6 +6,7 @@ const categories = ["", "documentation", "schema", "audio_case", "ticket", "busi
 export default function Dashboard() {
   const [items, setItems] = useState([]);
   const [stats, setStats] = useState({ total: 0, by_category: {} });
+  const [ragStats, setRagStats] = useState(null);
   const [category, setCategory] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -23,9 +24,14 @@ export default function Dashboard() {
     setLoading(true);
     setError("");
     try {
-      const [itemsRes, statsRes] = await Promise.all([api.get("/knowledge/items"), api.get("/knowledge/stats")]);
+      const [itemsRes, statsRes, ragStatsRes] = await Promise.all([
+        api.get("/knowledge/items"),
+        api.get("/knowledge/stats"),
+        api.get("/api/rag/stats"),
+      ]);
       setItems(itemsRes.data.items || []);
       setStats(statsRes.data || { total: 0, by_category: {} });
+      setRagStats(ragStatsRes.data || null);
     } catch (err) {
       setError(err?.response?.data?.error || "Falha ao carregar dashboard");
     } finally {
@@ -53,7 +59,38 @@ export default function Dashboard() {
             <span className="stat-label">Documentos</span>
           </article>
         ))}
+        {ragStats && (
+          <article className="card category-stat">
+            <h3>RAG Runtime</h3>
+            <strong>{ragStats.runtime?.llm_model || "-"}</strong>
+            <span className="stat-label">Modelo principal</span>
+          </article>
+        )}
       </div>
+
+      {ragStats && (
+        <div className="cards">
+          <article className="card">
+            <h3>Status do Cache</h3>
+            <strong>{ragStats.cache?.size ?? 0}</strong>
+            <span className="stat-label">Entradas em memoria / TTL {Math.round((ragStats.cache?.ttl_ms ?? 0) / 1000)}s</span>
+          </article>
+          <article className="card">
+            <h3>Reindexacao</h3>
+            <strong>{ragStats.operations?.status || "idle"}</strong>
+            <span className="stat-label">
+              {ragStats.operations?.finished_at
+                ? `Ultima finalizacao: ${new Date(ragStats.operations.finished_at).toLocaleString()}`
+                : "Nenhuma execucao registrada"}
+            </span>
+          </article>
+          <article className="card">
+            <h3>Pontos Reindexados</h3>
+            <strong>{ragStats.operations?.total_updated ?? 0}</strong>
+            <span className="stat-label">Scanned: {ragStats.operations?.total_scanned ?? 0}</span>
+          </article>
+        </div>
+      )}
 
       <div className="filter-panel">
         <div className="filter-row">

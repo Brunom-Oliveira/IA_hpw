@@ -676,6 +676,21 @@ input, select {
   text-decoration: none;
 }
 
+.chat-runtime-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+.chat-runtime-strip span {
+  background: var(--bg-main);
+  border: 1px solid var(--border-main);
+  border-radius: 999px;
+  padding: 0.3rem 0.6rem;
+}
+
 .thinking {
   opacity: 0.7;
   font-style: italic;

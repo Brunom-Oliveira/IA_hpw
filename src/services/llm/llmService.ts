@@ -36,11 +36,12 @@ export class LlmService implements LlmPort {
     };
   }
 
-  async generateStream(prompt: string, onToken: (chunk: any) => void, options?: { temperature?: number }): Promise<void> {
+  async generateStream(
+    prompt: string,
+    onToken: (chunk: any) => void,
+    options?: { temperature?: number; signal?: AbortSignal }
+  ): Promise<void> {
     const startedAt = Date.now();
-    let promptTokens = Math.ceil(prompt.length / 4);
-    let completionTokens = 0;
-
     if (env.llmProvider === "llama-cpp") {
       await this.streamLlamaCpp(prompt, onToken, options, startedAt);
     } else {
@@ -48,7 +49,12 @@ export class LlmService implements LlmPort {
     }
   }
 
-  private async streamOllama(prompt: string, onToken: (chunk: any) => void, options?: { temperature?: number }, startedAt?: number): Promise<void> {
+  private async streamOllama(
+    prompt: string,
+    onToken: (chunk: any) => void,
+    options?: { temperature?: number; signal?: AbortSignal },
+    startedAt?: number
+  ): Promise<void> {
     const response = await axios.post(`${env.ollamaBaseUrl}/api/generate`, {
       model: env.llmModel,
       prompt,
@@ -62,12 +68,13 @@ export class LlmService implements LlmPort {
     }, {
       responseType: "stream",
       timeout: env.ollamaTimeoutMs,
+      signal: options?.signal,
     });
 
     let promptTokensCount = Math.ceil(prompt.length / 4);
     let completionTokensCount = 0;
 
-    response.data.on("data", (chunk: Buffer) => {
+    const onData = (chunk: Buffer) => {
       const lines = chunk.toString().split("\n").filter(l => l.trim() !== "");
       for (const line of lines) {
         try {
@@ -93,24 +100,62 @@ export class LlmService implements LlmPort {
           // Skip partial lines
         }
       }
-    });
+    };
 
-    return new Promise((resolve) => {
-      response.data.on("end", resolve);
+    response.data.on("data", onData);
+
+    return new Promise((resolve, reject) => {
+      const cleanup = () => {
+        response.data.off("data", onData);
+        response.data.off("end", onEnd);
+        response.data.off("error", onError);
+        options?.signal?.removeEventListener("abort", onAbort);
+      };
+
+      const onEnd = () => {
+        cleanup();
+        resolve();
+      };
+
+      const onError = (error: Error) => {
+        cleanup();
+        reject(error);
+      };
+
+      const onAbort = () => {
+        cleanup();
+        response.data.destroy();
+        reject(new Error("Streaming cancelado pelo cliente"));
+      };
+
+      response.data.on("end", onEnd);
+      response.data.on("error", onError);
+      if (options?.signal) {
+        if (options.signal.aborted) {
+          onAbort();
+          return;
+        }
+        options.signal.addEventListener("abort", onAbort, { once: true });
+      }
     });
   }
 
-  private async streamLlamaCpp(prompt: string, onToken: (chunk: any) => void, options?: { temperature?: number }, startedAt?: number): Promise<void> {
+  private async streamLlamaCpp(
+    prompt: string,
+    onToken: (chunk: any) => void,
+    options?: { temperature?: number; signal?: AbortSignal },
+    startedAt?: number
+  ): Promise<void> {
     const response = await axios.post(`${env.ollamaBaseUrl}/completion`, {
       prompt,
       stream: true,
       temperature: options?.temperature ?? 0.1,
       n_predict: 500,
-    }, { responseType: "stream" });
+    }, { responseType: "stream", signal: options?.signal });
 
     let completionTokensCount = 0;
 
-    response.data.on("data", (chunk: Buffer) => {
+    const onData = (chunk: Buffer) => {
       const text = chunk.toString();
       if (text.startsWith("data: ")) {
         try {
@@ -137,10 +182,43 @@ export class LlmService implements LlmPort {
           // ignore parsing error
         }
       }
-    });
+    };
 
-    return new Promise((resolve) => {
-      response.data.on("end", resolve);
+    response.data.on("data", onData);
+
+    return new Promise((resolve, reject) => {
+      const cleanup = () => {
+        response.data.off("data", onData);
+        response.data.off("end", onEnd);
+        response.data.off("error", onError);
+        options?.signal?.removeEventListener("abort", onAbort);
+      };
+
+      const onEnd = () => {
+        cleanup();
+        resolve();
+      };
+
+      const onError = (error: Error) => {
+        cleanup();
+        reject(error);
+      };
+
+      const onAbort = () => {
+        cleanup();
+        response.data.destroy();
+        reject(new Error("Streaming cancelado pelo cliente"));
+      };
+
+      response.data.on("end", onEnd);
+      response.data.on("error", onError);
+      if (options?.signal) {
+        if (options.signal.aborted) {
+          onAbort();
+          return;
+        }
+        options.signal.addEventListener("abort", onAbort, { once: true });
+      }
     });
   }
 

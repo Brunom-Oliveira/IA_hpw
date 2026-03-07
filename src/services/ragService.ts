@@ -1,6 +1,8 @@
 import { v4 as uuidv4 } from "uuid";
 import { DocumentChunk, LlmPort, RagResponse, SearchResult, VectorDbPort } from "../types";
+import { env } from "../utils/env";
 import { EmbeddingService } from "./llm/embeddingService";
+import { RagOpsStatus, ragOpsStatusService } from "./ragOpsStatusService";
 import { ragQueryCache } from "./ragQueryCache";
 
 type QueryMode = "schema" | "procedure" | "troubleshooting" | "general";
@@ -104,7 +106,12 @@ export class RagService {
     return response;
   }
 
-  async askStream(question: string, onToken: (chunk: any) => void, topK?: number): Promise<void> {
+  async askStream(
+    question: string,
+    onToken: (chunk: any) => void,
+    topK?: number,
+    options?: { signal?: AbortSignal }
+  ): Promise<void> {
     const cacheKey = this.buildCacheKey(question, topK);
     const cached = ragQueryCache.get(cacheKey);
     if (cached) {
@@ -149,7 +156,7 @@ export class RagService {
       onToken(chunk);
     };
 
-    await this.llm.generateStream(prompt, streamingResponse);
+    await this.llm.generateStream(prompt, streamingResponse, { signal: options?.signal });
     ragQueryCache.set(cacheKey, {
       answer: assembled.trim(),
       context: contextData,
@@ -171,6 +178,16 @@ export class RagService {
       max_chunks_per_source: number;
       available_context_tokens: number;
     };
+    runtime: {
+      llm_model: string;
+      embedding_model: string;
+      llm_provider: string;
+      qdrant_collection: string;
+      rag_keep_alive: string;
+      rag_num_ctx: number;
+      rag_max_output_tokens: number;
+    };
+    operations: RagOpsStatus["reindex"];
   } {
     return {
       cache: ragQueryCache.stats(),
@@ -179,6 +196,16 @@ export class RagService {
         max_chunks_per_source: this.MAX_CHUNKS_PER_SOURCE,
         available_context_tokens: this.AVAILABLE_CONTEXT,
       },
+      runtime: {
+        llm_model: env.llmModel,
+        embedding_model: env.embeddingModel,
+        llm_provider: env.llmProvider,
+        qdrant_collection: env.qdrantCollection,
+        rag_keep_alive: env.ragKeepAlive,
+        rag_num_ctx: env.ragNumCtx,
+        rag_max_output_tokens: env.ragMaxOutputTokens,
+      },
+      operations: ragOpsStatusService.getStatus().reindex,
     };
   }
 

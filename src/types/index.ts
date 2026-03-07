@@ -39,6 +39,9 @@ export interface LlmStreamChunk {
 
 export interface LlmPort {
   generate(prompt: string, options?: { temperature?: number }): Promise<{ response: string; usage: LlmUsage }>;
-  generateStream(prompt: string, onToken: (chunk: LlmStreamChunk) => void, options?: { temperature?: number }): Promise<void>;
+  generateStream(
+    prompt: string,
+    onToken: (chunk: LlmStreamChunk) => void,
+    options?: { temperature?: number; signal?: AbortSignal }
+  ): Promise<void>;
 }
-

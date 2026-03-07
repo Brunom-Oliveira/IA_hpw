@@ -2,6 +2,7 @@ import axios, { AxiosResponse } from "axios";
 import { env } from "../utils/env";
 import { buildRagMetadata, extractPrimaryTableName } from "../utils/ragMetadata";
 import { ragQueryCache } from "./ragQueryCache";
+import { ragOpsStatusService } from "./ragOpsStatusService";
 
 type QdrantScrollPoint = {
   id: string | number;
@@ -33,21 +34,43 @@ export class RagMetadataReindexService {
   private readonly batchSize = Number(process.env.RAG_REINDEX_BATCH_SIZE || 100);
 
   async reindexAllCollections(): Promise<{ collections: ReindexCollectionResult[]; total_scanned: number; total_updated: number }> {
-    const collections = await this.getTargetCollections();
-    const results: ReindexCollectionResult[] = [];
+    ragOpsStatusService.markReindexStarted();
 
-    for (const collection of collections) {
-      const result = await this.reindexCollection(collection);
-      results.push(result);
+    try {
+      const collections = await this.getTargetCollections();
+      const results: ReindexCollectionResult[] = [];
+
+      for (const collection of collections) {
+        const result = await this.reindexCollection(collection);
+        results.push(result);
+      }
+
+      ragQueryCache.clear();
+
+      const summary = {
+        collections: results,
+        total_scanned: results.reduce((sum, item) => sum + item.scanned_points, 0),
+        total_updated: results.reduce((sum, item) => sum + item.updated_points, 0),
+      };
+
+      ragOpsStatusService.markReindexFinished({
+        status: "success",
+        total_scanned: summary.total_scanned,
+        total_updated: summary.total_updated,
+        collections: summary.collections,
+      });
+
+      return summary;
+    } catch (error: any) {
+      ragOpsStatusService.markReindexFinished({
+        status: "error",
+        total_scanned: 0,
+        total_updated: 0,
+        collections: [],
+        error: error?.message || "Falha ao reindexar metadata do RAG",
+      });
+      throw error;
     }
-
-    ragQueryCache.clear();
-
-    return {
-      collections: results,
-      total_scanned: results.reduce((sum, item) => sum + item.scanned_points, 0),
-      total_updated: results.reduce((sum, item) => sum + item.updated_points, 0),
-    };
   }
 
   private async reindexCollection(collection: string): Promise<ReindexCollectionResult> {

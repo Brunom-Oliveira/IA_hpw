@@ -16,15 +16,41 @@ export class ChatController {
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
+      res.setHeader("X-Accel-Buffering", "no");
+      res.flushHeaders?.();
+
+      const abortController = new AbortController();
+      const heartbeat = setInterval(() => {
+        if (!res.writableEnded) {
+          res.write(`data: ${JSON.stringify({ type: "heartbeat", ts: Date.now() })}\n\n`);
+        }
+      }, 15000);
+
+      const closeStream = () => {
+        clearInterval(heartbeat);
+        abortController.abort();
+      };
+
+      req.on("close", closeStream);
+      req.on("aborted", closeStream);
 
       try {
+        res.write(`data: ${JSON.stringify({ type: "status", phase: "Conexao estabelecida" })}\n\n`);
         await this.ragService.askStream(message, (chunk) => {
-          res.write(`data: ${JSON.stringify(chunk)}\n\n`);
-        }, topK);
+          if (!res.writableEnded) {
+            res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+          }
+        }, topK, { signal: abortController.signal });
         res.end();
       } catch (error: any) {
-        res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
-        res.end();
+        if (!abortController.signal.aborted && !res.writableEnded) {
+          res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
+          res.end();
+        }
+      } finally {
+        clearInterval(heartbeat);
+        req.off("close", closeStream);
+        req.off("aborted", closeStream);
       }
       return;
     }
