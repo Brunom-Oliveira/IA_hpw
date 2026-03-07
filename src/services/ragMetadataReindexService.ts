@@ -23,11 +23,17 @@ type QdrantScrollResponse = {
   result?: QdrantScrollResult | QdrantScrollPoint[];
 };
 
+type QdrantCollectionsResponse = {
+  result?: {
+    collections?: Array<{ name?: string }>;
+  };
+};
+
 export class RagMetadataReindexService {
   private readonly batchSize = Number(process.env.RAG_REINDEX_BATCH_SIZE || 100);
 
   async reindexAllCollections(): Promise<{ collections: ReindexCollectionResult[]; total_scanned: number; total_updated: number }> {
-    const collections = this.getTargetCollections();
+    const collections = await this.getTargetCollections();
     const results: ReindexCollectionResult[] = [];
 
     for (const collection of collections) {
@@ -133,10 +139,24 @@ export class RagMetadataReindexService {
     };
   }
 
-  private getTargetCollections(): string[] {
-    return Array.from(
-      new Set([env.qdrantCollection, "schema_documents", "schema_knowledge"].filter(Boolean))
+  private async getTargetCollections(): Promise<string[]> {
+    const existingCollections = await this.fetchExistingCollections();
+    const preferredCollections = Array.from(
+      new Set([env.qdrantCollection, "documents", "schema_documents", "schema_knowledge"].filter(Boolean))
     );
+
+    const selected = preferredCollections.filter((collection) => existingCollections.includes(collection));
+    if (selected.length > 0) return selected;
+
+    return existingCollections;
+  }
+
+  private async fetchExistingCollections(): Promise<string[]> {
+    const response: AxiosResponse<QdrantCollectionsResponse> = await axios.get(`${env.qdrantUrl}/collections`);
+    const collections = response.data?.result?.collections || [];
+    return collections
+      .map((item) => String(item?.name || "").trim())
+      .filter(Boolean);
   }
 
   private extractPoints(result: QdrantScrollResult | QdrantScrollPoint[] | undefined): QdrantScrollPoint[] {
