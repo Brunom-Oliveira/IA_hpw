@@ -53,11 +53,16 @@ export class LlmService implements LlmPort {
       model: env.llmModel,
       prompt,
       stream: true,
+      keep_alive: env.ragKeepAlive,
       options: {
         temperature: options?.temperature ?? 0.1,
-        num_predict: 500,
+        num_predict: env.ragMaxOutputTokens,
+        num_ctx: env.ragNumCtx,
       },
-    }, { responseType: "stream" });
+    }, {
+      responseType: "stream",
+      timeout: env.ollamaTimeoutMs,
+    });
 
     let promptTokensCount = Math.ceil(prompt.length / 4);
     let completionTokensCount = 0;
@@ -144,10 +149,14 @@ export class LlmService implements LlmPort {
       model: env.llmModel,
       prompt,
       stream: false,
+      keep_alive: env.ragKeepAlive,
       options: {
         temperature: options?.temperature ?? 0.1,
-        num_predict: 500,
+        num_predict: env.ragMaxOutputTokens,
+        num_ctx: env.ragNumCtx,
       },
+    }, {
+      timeout: env.ollamaTimeoutMs,
     });
     return response.data;
   }
@@ -161,4 +170,3 @@ export class LlmService implements LlmPort {
     return response.data;
   }
 }
-

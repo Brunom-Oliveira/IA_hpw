@@ -178,6 +178,9 @@ Configuracao:
 - `RAG_CACHE_TTL_MS`
   - tempo de vida do cache em milissegundos
   - default atual: `600000` (10 minutos)
+- `RAG_CACHE_MAX_ITEMS`
+  - limite maximo de entradas em memoria
+  - default atual: `300`
 
 ### 10. Reindexacao completa da metadata
 
@@ -207,6 +210,72 @@ Configuracao:
 - `RAG_REINDEX_BATCH_SIZE`
   - quantidade de pontos lidos por scroll no Qdrant
   - default atual: `100`
+
+### 11. Embeddings em lote com concorrencia controlada
+
+Arquivo:
+
+- [src/services/llm/embeddingService.ts](c:/Users/suporte/IA_Harpiawms/src/services/llm/embeddingService.ts)
+
+O que mudou:
+
+- `embedBatch` deixou de ser totalmente serial
+- os embeddings agora sao gerados em paralelo com limite de concorrencia
+- o fluxo tambem passou a respeitar timeout e retry configuraveis
+
+Motivo:
+
+- upload manual, schema e reindexacao ficavam mais lentos do que o necessario
+- em VPS pequena nao convem liberar concorrencia sem limite
+
+Configuracao:
+
+- `EMBEDDING_BATCH_CONCURRENCY`
+  - quantidade de embeddings simultaneos
+  - default atual: `2`
+- `OLLAMA_EMBED_TIMEOUT_MS`
+- `OLLAMA_EMBED_RETRIES`
+
+### 12. Formato de resposta por tipo de pergunta
+
+Arquivo:
+
+- [src/services/ragService.ts](c:/Users/suporte/IA_Harpiawms/src/services/ragService.ts)
+
+O que mudou:
+
+- perguntas passaram a ter formato de resposta mais restrito por tipo:
+  - `schema`
+  - `procedure`
+  - `troubleshooting`
+- perguntas de erro/falha agora recebem tratamento proprio no prompt e no reranking
+
+Motivo:
+
+- um unico formato para toda pergunta tende a produzir resposta generica demais
+- troubleshooting exige saida diferente de schema ou procedimento
+
+### 13. Observabilidade basica do RAG
+
+Arquivos:
+
+- [src/services/ragService.ts](c:/Users/suporte/IA_Harpiawms/src/services/ragService.ts)
+- [src/controllers/chatController.ts](c:/Users/suporte/IA_Harpiawms/src/controllers/chatController.ts)
+- [src/routes/index.ts](c:/Users/suporte/IA_Harpiawms/src/routes/index.ts)
+
+O que mudou:
+
+- novo endpoint:
+  - `GET /api/rag/stats`
+- a resposta expõe:
+  - tamanho atual do cache
+  - TTL
+  - limite maximo de itens
+  - configuracao de contexto usada pelo RAG
+
+Motivo:
+
+- operacao precisa visibilidade minima para saber se cache e contexto estao coerentes
 
 ## Cobertura de Testes
 

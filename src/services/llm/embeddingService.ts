@@ -7,6 +7,8 @@ export class EmbeddingService {
       const response = await axios.post(`${env.ollamaBaseUrl}/api/embeddings`, {
         model: env.embeddingModel,
         prompt: text,
+      }, {
+        timeout: env.ollamaEmbedTimeoutMs,
       });
       if (Array.isArray(response.data?.embedding)) return response.data.embedding as number[];
     } catch (error: any) {
@@ -15,10 +17,7 @@ export class EmbeddingService {
       }
     }
 
-    const response = await axios.post(`${env.ollamaBaseUrl}/api/embed`, {
-      model: env.embeddingModel,
-      input: text,
-    });
+    const response = await this.postEmbedFallback(text);
 
     if (Array.isArray(response.data?.embedding)) return response.data.embedding as number[];
     if (Array.isArray(response.data?.embeddings) && response.data.embeddings.length) {
@@ -29,11 +28,39 @@ export class EmbeddingService {
   }
 
   async embedBatch(texts: string[]): Promise<number[][]> {
-    const embeddings: number[][] = [];
-    for (const text of texts) {
-      const embedded = await this.embed(text);
-      embeddings.push(embedded);
+    const results: number[][] = new Array(texts.length);
+    const concurrency = Math.max(1, Math.min(env.embeddingBatchConcurrency, texts.length || 1));
+    let currentIndex = 0;
+
+    const worker = async (): Promise<void> => {
+      while (true) {
+        const index = currentIndex++;
+        if (index >= texts.length) return;
+        results[index] = await this.embed(texts[index]);
+      }
+    };
+
+    await Promise.all(Array.from({ length: concurrency }, () => worker()));
+    return results;
+  }
+
+  private async postEmbedFallback(text: string): Promise<any> {
+    let lastError: unknown;
+    const attempts = Math.max(1, env.ollamaEmbedRetries + 1);
+
+    for (let attempt = 0; attempt < attempts; attempt++) {
+      try {
+        return await axios.post(`${env.ollamaBaseUrl}/api/embed`, {
+          model: env.embeddingModel,
+          input: text,
+        }, {
+          timeout: env.ollamaEmbedTimeoutMs,
+        });
+      } catch (error) {
+        lastError = error;
+      }
     }
-    return embeddings;
+
+    throw lastError instanceof Error ? lastError : new Error("Falha ao gerar embedding no Ollama");
   }
 }

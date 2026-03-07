@@ -36,5 +36,8 @@ export class ChatController {
       res.status(500).json({ error: error.message || "Erro no processamento do chat" });
     }
   };
-}
 
+  diagnostics = (_req: Request, res: Response): void => {
+    res.json(this.ragService.getDiagnostics());
+  };
+}

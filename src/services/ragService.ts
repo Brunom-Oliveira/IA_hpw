@@ -3,7 +3,7 @@ import { DocumentChunk, LlmPort, RagResponse, SearchResult, VectorDbPort } from 
 import { EmbeddingService } from "./llm/embeddingService";
 import { ragQueryCache } from "./ragQueryCache";
 
-type QueryMode = "schema" | "procedure" | "general";
+type QueryMode = "schema" | "procedure" | "troubleshooting" | "general";
 
 type QueryAnalysis = {
   mode: QueryMode;
@@ -164,6 +164,24 @@ export class RagService {
     return this.vectorDb.search(queryEmbedding, topK);
   }
 
+  getDiagnostics(): {
+    cache: { size: number; ttl_ms: number; max_items: number };
+    config: {
+      max_context_documents: number;
+      max_chunks_per_source: number;
+      available_context_tokens: number;
+    };
+  } {
+    return {
+      cache: ragQueryCache.stats(),
+      config: {
+        max_context_documents: this.MAX_CONTEXT_DOCUMENTS,
+        max_chunks_per_source: this.MAX_CHUNKS_PER_SOURCE,
+        available_context_tokens: this.AVAILABLE_CONTEXT,
+      },
+    };
+  }
+
   private async retrieveCuratedHits(question: string, requestedTopK: number | undefined, analysis: QueryAnalysis): Promise<SearchResult[]> {
     const candidateLimit = this.resolveCandidateLimit(question, requestedTopK, analysis);
     const finalLimit = this.resolveFinalContextLimit(requestedTopK, analysis);
@@ -213,7 +231,31 @@ export class RagService {
     const responseModeInstruction =
       analysis.mode === "schema"
         ? "Se a pergunta citar uma tabela especifica, responda somente com informacoes dessa tabela. Nao use tabelas relacionadas como substitutas."
-        : "Se a pergunta for operacional, responda em passos curtos e práticos.";
+        : analysis.mode === "troubleshooting"
+          ? "Se a pergunta for sobre erro ou falha, responda com base em evidencias do contexto e destaque a acao recomendada."
+          : "Se a pergunta for operacional, responda em passos curtos e praticos.";
+
+    const responseFormat =
+      analysis.mode === "schema"
+        ? [
+            "FORMATO DA RESPOSTA:",
+            "- Responda em no maximo 6 linhas.",
+            "- Cite somente informacoes da tabela alvo.",
+            "- Nomeie explicitamente a tabela na primeira linha quando possivel.",
+          ]
+        : analysis.mode === "troubleshooting"
+          ? [
+              "FORMATO DA RESPOSTA:",
+              "- Responda em no maximo 6 linhas.",
+              "- Estruture em: Problema, Evidencias, Acao recomendada.",
+              "- Nao sugira causa sem evidencia minima no contexto.",
+            ]
+          : [
+              "FORMATO DA RESPOSTA:",
+              "- Responda em no maximo 6 linhas.",
+              "- Cite a tabela ou fonte quando isso ajudar.",
+              "- Para perguntas operacionais, use passos numerados curtos.",
+            ];
 
     return [
       "Voce e um analista de suporte especialista no sistema HarpiaWMS.",
@@ -228,10 +270,7 @@ export class RagService {
       "",
       `PERGUNTA: ${question}`,
       "",
-      "FORMATO DA RESPOSTA:",
-      "- Responda em no maximo 6 linhas.",
-      "- Cite a tabela ou fonte quando isso ajudar.",
-      "- Para perguntas operacionais, use passos numerados curtos.",
+      ...responseFormat,
       "",
       "RESPOSTA:",
     ].join("\n");
@@ -276,12 +315,14 @@ export class RagService {
 
     const schemaSignals = ["campo", "coluna", "constraint", "fk", "pk", "tabela", "schema", "ddl", "estrutura"];
     const procedureSignals = ["como", "passo", "procedimento", "rotina", "recepcao", "recebimento", "impressao", "configurar"];
+    const troubleshootingSignals = ["erro", "falha", "problema", "corrigir", "ajustar", "nao funciona", "timeout", "rejeicao"];
 
     const hasSchemaSignal = tableHints.length > 0 || schemaSignals.some((signal) => normalizedQuestion.includes(signal));
     const hasProcedureSignal = procedureSignals.some((signal) => normalizedQuestion.includes(signal));
+    const hasTroubleshootingSignal = troubleshootingSignals.some((signal) => normalizedQuestion.includes(signal));
 
     return {
-      mode: hasSchemaSignal ? "schema" : hasProcedureSignal ? "procedure" : "general",
+      mode: hasSchemaSignal ? "schema" : hasTroubleshootingSignal ? "troubleshooting" : hasProcedureSignal ? "procedure" : "general",
       tableHints,
       terms,
       normalizedQuestion,
@@ -361,6 +402,13 @@ export class RagService {
       if (category.toLowerCase() === "manual") score += 45;
       if (category.toLowerCase() === "ticket") score += 20;
       if (this.normalizeText(textHead).includes("procedimento") || this.normalizeText(textHead).includes("passo")) score += 20;
+    }
+
+    if (analysis.mode === "troubleshooting") {
+      if (category.toLowerCase() === "ticket") score += 45;
+      if (category.toLowerCase() === "audio_case") score += 30;
+      if (this.normalizeText(textHead).includes("erro") || this.normalizeText(textHead).includes("falha")) score += 25;
+      if (this.normalizeText(textHead).includes("causa") || this.normalizeText(textHead).includes("solucao")) score += 20;
     }
 
     if (!analysis.tableHints.length && analysis.mode === "general") {

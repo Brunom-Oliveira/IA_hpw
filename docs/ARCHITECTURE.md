@@ -75,6 +75,7 @@ Essas rotas agora sao atendidas por controllers TS e nao mais por routers JS ind
 - [src/services/ragQueryCache.ts](c:/Users/suporte/IA_Harpiawms/src/services/ragQueryCache.ts)
 - [src/services/ragMetadataReindexService.ts](c:/Users/suporte/IA_Harpiawms/src/services/ragMetadataReindexService.ts)
 - [src/utils/ragMetadata.ts](c:/Users/suporte/IA_Harpiawms/src/utils/ragMetadata.ts)
+- [src/services/llm/embeddingService.ts](c:/Users/suporte/IA_Harpiawms/src/services/llm/embeddingService.ts)
 
 Responsavel por:
 
@@ -86,6 +87,8 @@ Responsavel por:
 - streaming de resposta
 - cache temporario de consultas repetidas
 - reindexacao de metadata semantica no Qdrant
+- diagnostico operacional do RAG
+- embeddings em lote com concorrencia controlada
 
 ### Conhecimento
 
