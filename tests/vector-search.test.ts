@@ -1,34 +1,82 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { RagService } from "../src/services/ragService";
-import { VectorDbPort } from "../src/types";
+import { LlmPort, VectorDbPort } from "../src/types";
 
-const fakeEmbedding = {
-  embed: async (_text: string) => [0.1, 0.2, 0.3],
-  embedBatch: async (texts: string[]) => texts.map(() => [0.1, 0.2, 0.3]),
+const fakeUsage = {
+  promptTokens: 10,
+  completionTokens: 5,
+  totalTokens: 15,
+  executionTimeMs: 20,
+};
+
+const fakeEmbeddingService = {
+  embed: vi.fn(async (_text: string) => [0.1, 0.2, 0.3]),
+  embedBatch: vi.fn(async (texts: string[]) => texts.map(() => [0.1, 0.2, 0.3])),
+};
+
+const fakeLlm: LlmPort = {
+  generate: vi.fn(async (prompt: string) => ({
+    response: `Resposta sintetizada para prompt com ${prompt.length} caracteres`,
+    usage: fakeUsage,
+  })),
+  generateStream: vi.fn(async () => undefined),
 };
 
 describe("RagService", () => {
-  it("inserta e consulta contexto vetorial", async () => {
-    const memory: { ids: string[]; docs: string[] } = { ids: [], docs: [] };
-    const db: VectorDbPort = {
-      upsert: async (documents) => {
-        memory.ids = documents.map((doc) => doc.id);
-        memory.docs = documents.map((doc) => doc.text);
-      },
-      search: async () =>
-        memory.docs.map((text, index) => ({
-          id: memory.ids[index],
-          text,
-          distance: 0.01,
-          metadata: {},
-        })),
+  it("insere documentos com embeddings gerados em lote", async () => {
+    const upsert = vi.fn(async () => undefined);
+    const vectorDb: VectorDbPort = {
+      upsert,
+      search: vi.fn(async () => []),
     };
 
-    const service = new RagService(db, fakeEmbedding as any);
-    await service.insertDocuments([{ text: "Documento de teste" }]);
-    const result = await service.searchContext("teste", 2);
-    expect(result.length).toBe(1);
-    expect(result[0].text).toContain("teste");
+    const service = new RagService(vectorDb, fakeEmbeddingService as any, fakeLlm);
+    const ids = await service.insertDocuments([
+      { text: "Documento A", metadata: { category: "manual" } },
+      { text: "Documento B", metadata: { category: "schema" } },
+    ]);
+
+    expect(ids).toHaveLength(2);
+    expect(fakeEmbeddingService.embedBatch).toHaveBeenCalledOnce();
+    expect(upsert).toHaveBeenCalledOnce();
+  });
+
+  it("filtra contexto estritamente pela tabela solicitada", async () => {
+    const vectorDb: VectorDbPort = {
+      upsert: vi.fn(async () => undefined),
+      search: vi.fn(async () => [
+        {
+          id: "schema-479",
+          text: "Tabela: MERC_INVOL_479\nCampo: MERC_PF_479",
+          distance: 0.01,
+          metadata: {
+            title: "Estrutura da tabela MERC_INVOL_479",
+            source: "MERC_INVOL_479.SQL",
+          },
+        },
+        {
+          id: "schema-461",
+          text: "Tabela: MERCADORIA_461\nCampo principal: MERC_PK_461",
+          distance: 0.02,
+          metadata: {
+            title: "Estrutura da tabela MERCADORIA_461",
+            source: "MERCADORIA_461.SQL",
+          },
+        },
+      ]),
+    };
+
+    const service = new RagService(vectorDb, fakeEmbeddingService as any, fakeLlm);
+    const result = await service.ask("qual e o campo de mercadoria da tabela 461", 2);
+
+    expect(result.context).toContain("MERCADORIA_461");
+    expect(result.context).not.toContain("MERC_INVOL_479");
+    expect(result.sources).toEqual([
+      {
+        title: "Estrutura da tabela MERCADORIA_461",
+        category: "Geral",
+      },
+    ]);
+    expect(result.matches).toBe(1);
   });
 });
-

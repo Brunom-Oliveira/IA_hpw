@@ -156,6 +156,18 @@ Esses arquivos deixaram de ser necessarios depois da consolidacao da composicao 
 3. Dominio central deve ficar em TypeScript.
 4. Utilitarios de dominio devem seguir a pilha TypeScript oficial.
 
+## Estrategia de Testes
+
+Documento:
+
+- [docs/TESTING.md](c:/Users/suporte/IA_Harpiawms/docs/TESTING.md)
+
+Estado atual:
+
+- a suite de testes foi realinhada ao runtime TypeScript oficial
+- nao existem mais testes dependentes de services removidos do backend
+- o comportamento critico de filtro de tabela no RAG passou a ter cobertura automatizada
+
 ## Proxima Etapa Recomendada
 
-Alinhar a suite de testes ao contrato atual do sistema e seguir para a fase de melhoria de qualidade do RAG.
+Seguir para a fase de melhoria de qualidade do RAG, agora com base arquitetural e validacao automatizada minima consistentes.
