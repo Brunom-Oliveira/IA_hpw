@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import { createRoutes } from "./routes";
+import { createCompatibilityRoutes } from "./routes/compatibility";
 import { QdrantVectorDbService } from "./services/vector-db/qdrantVectorDbService";
 import { EmbeddingService } from "./services/llm/embeddingService";
 import { RagService } from "./services/ragService";
@@ -11,12 +12,12 @@ import { DocumentController } from "./controllers/documentController";
 import { ClassificationController } from "./controllers/classificationController";
 import { ChatController } from "./controllers/chatController";
 import { TranscribeController } from "./controllers/transcribeController";
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const ragRoutes = require("./routes/rag.routes");
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const schemaRoutes = require("./routes/schema.routes");
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const knowledgeRoutes = require("./routes/knowledge.routes");
+import { PdfIngestService } from "./services/pdfIngestService";
+import { KnowledgeController } from "./controllers/knowledgeController";
+import { SchemaController } from "./controllers/schemaController";
+import { PublicRagController } from "./controllers/publicRagController";
+import { KnowledgeService } from "./services/knowledgeService";
+import { SchemaService } from "./services/schemaService";
 
 export const buildApp = () => {
   const app = express();
@@ -32,8 +33,10 @@ export const buildApp = () => {
   const documentController = new DocumentController(ragService);
   const classificationController = new ClassificationController(new ClassificationService(llmService));
   const chatController = new ChatController(ragService);
-
   const transcribeController = new TranscribeController(new WhisperService());
+  const knowledgeController = new KnowledgeController(new KnowledgeService(embeddingService, llmService));
+  const schemaController = new SchemaController(new SchemaService(embeddingService));
+  const publicRagController = new PublicRagController(ragService, new PdfIngestService(ragService));
 
   app.use(
     "/api",
@@ -44,9 +47,14 @@ export const buildApp = () => {
       transcribeController,
     })
   );
-  app.use("/rag", ragRoutes);
-  app.use("/schema", schemaRoutes);
-  app.use("/knowledge", knowledgeRoutes);
+  app.use(
+    "/",
+    createCompatibilityRoutes({
+      knowledgeController,
+      schemaController,
+      publicRagController,
+    }),
+  );
 
   app.use((error: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     res.status(500).json({ error: error.message ?? "Erro interno" });

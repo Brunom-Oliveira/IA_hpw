@@ -1,10 +1,42 @@
-class KnowledgeTransformer {
-  constructor() {
-    this.maxSchemaColumns = Number(process.env.KNOWLEDGE_SCHEMA_MAX_COLUMNS || 28);
-    this.maxSchemaRelations = Number(process.env.KNOWLEDGE_SCHEMA_MAX_RELATIONS || 10);
-  }
+export interface KnowledgeItemInput {
+  category?: string;
+  system?: string;
+  module?: string;
+  title?: string;
+  problem?: string;
+  symptoms?: string[] | string;
+  cause?: string;
+  solution?: string;
+  tables_related?: string[] | string;
+  tags?: string[] | string;
+}
 
-  normalizeInput(input) {
+export interface KnowledgeItem {
+  category: string;
+  system: string;
+  module: string;
+  title: string;
+  problem: string;
+  symptoms: string[];
+  cause: string;
+  solution: string;
+  tables_related: string[];
+  tags: string[];
+}
+
+type ParsedSchemaTable = {
+  table: string;
+  columns?: Array<{ name: string; type: string }>;
+  primaryKey?: string[];
+  foreignKeys?: Array<{ field: string; referencedTable: string }>;
+  check_constraints?: Array<{ expression?: string }>;
+};
+
+export class KnowledgeTransformer {
+  private readonly maxSchemaColumns = Number(process.env.KNOWLEDGE_SCHEMA_MAX_COLUMNS || 28);
+  private readonly maxSchemaRelations = Number(process.env.KNOWLEDGE_SCHEMA_MAX_RELATIONS || 10);
+
+  normalizeInput(input: KnowledgeItemInput): KnowledgeItem {
     const source = input || {};
     return {
       category: source.category || "documentation",
@@ -20,7 +52,7 @@ class KnowledgeTransformer {
     };
   }
 
-  buildStandardText(item) {
+  buildStandardText(item: KnowledgeItem): string {
     const symptoms = item.symptoms.length ? item.symptoms : ["Nao informado"];
     const tables = item.tables_related.length ? item.tables_related : ["Nao informado"];
     const tags = item.tags.length ? item.tags : ["Nao informado"];
@@ -28,9 +60,9 @@ class KnowledgeTransformer {
     return [
       `Tipo: ${item.category}`,
       `Sistema: ${item.system || "Nao informado"}`,
-      `Módulo: ${item.module || "Nao informado"}`,
+      `Modulo: ${item.module || "Nao informado"}`,
       "",
-      `Título: ${item.title || "Nao informado"}`,
+      `Titulo: ${item.title || "Nao informado"}`,
       "",
       "Problema:",
       item.problem || "Nao informado",
@@ -41,7 +73,7 @@ class KnowledgeTransformer {
       "Causa:",
       item.cause || "Nao informado",
       "",
-      "Solução:",
+      "Solucao:",
       item.solution || "Nao informado",
       "",
       "Tabelas Relacionadas:",
@@ -52,7 +84,7 @@ class KnowledgeTransformer {
     ].join("\n");
   }
 
-  tableToKnowledgeDocument(tableDef, sourceName) {
+  tableToKnowledgeDocument(tableDef: ParsedSchemaTable, sourceName: string): KnowledgeItem {
     const fkTables = Array.from(new Set((tableDef.foreignKeys || []).map((fk) => fk.referencedTable)));
     const columns = Array.isArray(tableDef.columns) ? tableDef.columns : [];
     const limitedColumns = columns.slice(0, this.maxSchemaColumns);
@@ -63,7 +95,7 @@ class KnowledgeTransformer {
     const checkConstraints = Array.isArray(tableDef.check_constraints) ? tableDef.check_constraints : [];
     const topChecks = checkConstraints
       .slice(0, 8)
-      .map((constraint) => (constraint && constraint.expression ? constraint.expression : ""))
+      .map((constraint) => (constraint?.expression ? constraint.expression : ""))
       .filter(Boolean);
     const checkLines = topChecks.map((expression) => `CHECK: ${expression}`);
     const checkSummary = topChecks.length
@@ -94,7 +126,7 @@ class KnowledgeTransformer {
     };
   }
 
-  safeArray(value) {
+  private safeArray(value: string[] | string | undefined): string[] {
     if (Array.isArray(value)) {
       return value.map((item) => this.safeText(item)).filter(Boolean);
     }
@@ -107,10 +139,8 @@ class KnowledgeTransformer {
     return [];
   }
 
-  safeText(value) {
+  private safeText(value: string | undefined): string {
     if (typeof value !== "string") return "";
     return value.trim();
   }
 }
-
-module.exports = { KnowledgeTransformer };

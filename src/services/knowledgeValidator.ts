@@ -1,11 +1,17 @@
-const ALLOWED_CATEGORIES = ["documentation", "schema", "audio_case", "ticket", "business_rule"];
+export const ALLOWED_KNOWLEDGE_CATEGORIES = [
+  "documentation",
+  "schema",
+  "audio_case",
+  "ticket",
+  "business_rule",
+] as const;
 
-class KnowledgeValidator {
-  validateManualInput(payload) {
-    const errors = [];
+export class KnowledgeValidator {
+  validateManualInput(payload: Record<string, unknown>) {
+    const errors: string[] = [];
     const data = payload || {};
 
-    if (!ALLOWED_CATEGORIES.includes(data.category)) {
+    if (!ALLOWED_KNOWLEDGE_CATEGORIES.includes(String(data.category || "") as (typeof ALLOWED_KNOWLEDGE_CATEGORIES)[number])) {
       errors.push("category invalida");
     }
     if (!this.isNonEmpty(data.system)) {
@@ -17,7 +23,6 @@ class KnowledgeValidator {
     if (!this.isNonEmpty(data.title)) {
       errors.push("title obrigatorio");
     }
-
     if (!this.isNonEmpty(data.problem) && !this.isNonEmpty(data.cause) && !this.isNonEmpty(data.solution)) {
       errors.push("Informe ao menos um campo entre problem, cause e solution");
     }
@@ -28,10 +33,7 @@ class KnowledgeValidator {
     };
   }
 
-  isNonEmpty(value) {
+  private isNonEmpty(value: unknown): value is string {
     return typeof value === "string" && value.trim().length > 0;
   }
 }
-
-module.exports = { KnowledgeValidator, ALLOWED_CATEGORIES };
-
