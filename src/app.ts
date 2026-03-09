@@ -4,6 +4,12 @@ import { createRoutes } from "./routes";
 import { createCompatibilityRoutes } from "./routes/compatibility";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 import { requestIdMiddleware } from "./middleware/requestIdMiddleware";
+import {
+  apiLimiter,
+  uploadLimiter,
+  transcribeLimiter,
+  adminLimiter,
+} from "./middleware/rateLimiter";
 import { QdrantVectorDbService } from "./services/vector-db/qdrantVectorDbService";
 import { EmbeddingService } from "./services/llm/embeddingService";
 import { RagService } from "./services/ragService";
@@ -29,6 +35,13 @@ export const buildApp = () => {
   app.use(cors());
   app.use(express.json({ limit: "2mb" }));
   app.use(requestIdMiddleware); // Gera/recupera request ID para cada request
+
+  // Rate Limiting [PERF-001]
+  app.use("/api", apiLimiter); // Limiter geral (100 req/15 min)
+  app.use("/api/documents/upload-manual", uploadLimiter); // Uploads (50/hora)
+  app.use("/api/documents/upload-sql", uploadLimiter); // Uploads (50/hora)
+  app.use("/api/documents/upload-audio", uploadLimiter); // Uploads (50/hora)
+  app.use("/api/transcribe", transcribeLimiter); // Transcrição (20/hora)
 
   const vectorDb = new QdrantVectorDbService();
   const embeddingService = new EmbeddingService();
