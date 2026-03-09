@@ -35,4 +35,6 @@ export const env = {
   whisperLanguage: process.env.WHISPER_LANGUAGE ?? "pt",
   chunkSize: toNumber(process.env.CHUNK_SIZE, 800),
   chunkOverlap: toNumber(process.env.CHUNK_OVERLAP, 120),
+  ragMaxChunksPerSource: toNumber(process.env.RAG_MAX_CHUNKS_PER_SOURCE, 5),
+  ragTopK: toNumber(process.env.RAG_TOP_K, 10),
 };

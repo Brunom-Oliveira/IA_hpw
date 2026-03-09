@@ -11,6 +11,13 @@ export interface SearchResult {
   distance: number;
 }
 
+export interface QueryAnalysis {
+  mode: "schema" | "troubleshooting" | "procedure" | "general";
+  tableHints: string[];
+  terms: string[];
+  normalizedQuestion: string;
+}
+
 export interface VectorDbPort {
   upsert(documents: DocumentChunk[], embeddings: number[][]): Promise<void>;
   search(queryEmbedding: number[], topK: number): Promise<SearchResult[]>;
