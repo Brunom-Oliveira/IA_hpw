@@ -2,22 +2,30 @@ import { Request, Response } from "express";
 import { promises as fs } from "node:fs";
 import { RagService } from "../services/ragService";
 import { buildRagMetadata } from "../utils/ragMetadata";
+import { validateFiles } from "../utils/fileValidator";
 
 const MANUAL_CHUNK_SIZE = Number(process.env.MANUAL_UPLOAD_CHUNK_SIZE || 2500);
-const MANUAL_CHUNK_OVERLAP = Number(process.env.MANUAL_UPLOAD_CHUNK_OVERLAP || 250);
+const MANUAL_CHUNK_OVERLAP = Number(
+  process.env.MANUAL_UPLOAD_CHUNK_OVERLAP || 250,
+);
 
 export class DocumentController {
   constructor(private readonly ragService: RagService) {}
 
   insertDocuments = async (req: Request, res: Response): Promise<void> => {
-    const documents = req.body?.documents as Array<{ text: string; metadata?: Record<string, string | number | boolean> }>;
+    const documents = req.body?.documents as Array<{
+      text: string;
+      metadata?: Record<string, string | number | boolean>;
+    }>;
 
     if (!Array.isArray(documents) || documents.length === 0) {
       res.status(400).json({ error: "documents deve ser um array nao vazio" });
       return;
     }
 
-    const valid = documents.every((doc) => typeof doc.text === "string" && doc.text.trim().length > 0);
+    const valid = documents.every(
+      (doc) => typeof doc.text === "string" && doc.text.trim().length > 0,
+    );
     if (!valid) {
       res.status(400).json({ error: "Cada documento deve possuir campo text" });
       return;
@@ -30,7 +38,27 @@ export class DocumentController {
   uploadManual = async (req: Request, res: Response): Promise<void> => {
     const files = this.extractUploadedFiles(req);
     if (!files.length) {
-      res.status(400).json({ error: "Arquivo(s) obrigatorio(s) no campo files" });
+      res
+        .status(400)
+        .json({ error: "Arquivo(s) obrigatório(s) no campo files" });
+      return;
+    }
+
+    // Validar arquivos
+    const { valid, invalid } = validateFiles(files);
+
+    if (invalid.length > 0 && valid.length === 0) {
+      res.status(400).json({
+        error: "Nenhum arquivo válido",
+        details: invalid.map((item) => ({
+          filename: item.file.originalname,
+          error: item.error,
+        })),
+      });
+      // Limpar arquivos inválidos
+      for (const file of files) {
+        await fs.unlink(file.path).catch(() => undefined);
+      }
       return;
     }
 
@@ -44,9 +72,15 @@ export class DocumentController {
     let totalChunks = 0;
     let failures = 0;
 
-    for (const file of files) {
+    // Processar apenas arquivos válidos
+    for (const file of valid) {
       try {
-        const item = await this.processManualFile(file, { system, module, sourceOverride, titleOverride });
+        const item = await this.processManualFile(file, {
+          system,
+          module,
+          sourceOverride,
+          titleOverride,
+        });
         items.push(item);
         totalInserted += Number(item.inserted || 0);
         totalChunks += Number(item.chunks || 0);
@@ -62,13 +96,24 @@ export class DocumentController {
       }
     }
 
+    // Adicionar inválidos no resultado
+    for (const { file, error } of invalid) {
+      items.push({
+        file_name: file.originalname,
+        status: "error",
+        error,
+      });
+      failures += 1;
+    }
+
     const statusCode = totalInserted > 0 ? 201 : 400;
     res.status(statusCode).json({
-      message: totalInserted > 0
-        ? "Manual(is) indexado(s) com sucesso"
-        : "Nenhum arquivo valido foi indexado",
+      message:
+        totalInserted > 0
+          ? "Manual(is) indexado(s) com sucesso"
+          : "Nenhum arquivo válido foi indexado",
       total_files: files.length,
-      processed_files: files.length - failures,
+      processed_files: valid.length,
       failed_files: failures,
       total_chunks: totalChunks,
       inserted: totalInserted,
@@ -91,7 +136,8 @@ export class DocumentController {
 
   private extractUploadedFiles(req: Request): Express.Multer.File[] {
     const filesFromArray = req.files as Express.Multer.File[] | undefined;
-    if (Array.isArray(filesFromArray) && filesFromArray.length) return filesFromArray;
+    if (Array.isArray(filesFromArray) && filesFromArray.length)
+      return filesFromArray;
 
     const singleFile = req.file as Express.Multer.File | undefined;
     return singleFile ? [singleFile] : [];
@@ -99,7 +145,12 @@ export class DocumentController {
 
   private async processManualFile(
     file: Express.Multer.File,
-    options: { system: string; module: string; sourceOverride: string; titleOverride: string },
+    options: {
+      system: string;
+      module: string;
+      sourceOverride: string;
+      titleOverride: string;
+    },
   ): Promise<Record<string, unknown>> {
     const originalName = String(file.originalname || "");
     const lowerName = originalName.toLowerCase();
@@ -109,7 +160,9 @@ export class DocumentController {
     }
 
     const raw = await fs.readFile(file.path, "utf-8");
-    const text = String(raw || "").replace(/\r/g, "").trim();
+    const text = String(raw || "")
+      .replace(/\r/g, "")
+      .trim();
     if (!text) throw new Error("Arquivo vazio");
 
     const chunks = splitIntoChunks(
@@ -148,7 +201,11 @@ export class DocumentController {
   }
 }
 
-function splitIntoChunks(text: string, chunkSize: number, overlap: number): string[] {
+function splitIntoChunks(
+  text: string,
+  chunkSize: number,
+  overlap: number,
+): string[] {
   const normalized = String(text || "").trim();
   if (!normalized) return [];
 
