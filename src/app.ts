@@ -29,6 +29,7 @@ import { KnowledgeService } from "./services/knowledgeService";
 import { SchemaService } from "./services/schemaService";
 import { RagMetadataReindexService } from "./services/ragMetadataReindexService";
 import { RagReindexQueueService } from "./services/ragReindexQueueService";
+import { cacheWarmingService } from "./services/cacheWarmingService";
 
 export const buildApp = () => {
   const app = express();
@@ -94,6 +95,11 @@ export const buildApp = () => {
 
   // Global error handler (DEVE SER O ÚLTIMO MIDDLEWARE)
   app.use(errorHandler);
+
+  // Cache Warming [CACHE-001]: Pré-aquecimento assíncrono
+  cacheWarmingService.warmupAsync(ragService).catch((err) => {
+    console.warn("[app] Erro na inicialização de cache warming:", err?.message);
+  });
 
   return app;
 };
