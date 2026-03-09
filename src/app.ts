@@ -4,6 +4,7 @@ import { createRoutes } from "./routes";
 import { createCompatibilityRoutes } from "./routes/compatibility";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 import { requestIdMiddleware } from "./middleware/requestIdMiddleware";
+import { streamingTimeoutMiddleware } from "./middleware/streamingTimeout";
 import {
   apiLimiter,
   uploadLimiter,
@@ -35,6 +36,7 @@ export const buildApp = () => {
   app.use(cors());
   app.use(express.json({ limit: "2mb" }));
   app.use(requestIdMiddleware); // Gera/recupera request ID para cada request
+  app.use(streamingTimeoutMiddleware()); // Proteção de timeout para streams [PERF-002]
 
   // Rate Limiting [PERF-001]
   app.use("/api", apiLimiter); // Limiter geral (100 req/15 min)
