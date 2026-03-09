@@ -1,5 +1,7 @@
 import { useState } from "react";
 import api from "../api";
+import { useApiError } from "../hooks/useApiError";
+import ErrorDisplay from "../components/ErrorDisplay";
 
 const manualTimeoutMs = Number(import.meta.env.VITE_MANUAL_UPLOAD_TIMEOUT_MS || 420000);
 
@@ -9,18 +11,21 @@ export default function UploadManual() {
   const [module, setModule] = useState("Recepcao");
   const [title, setTitle] = useState("");
   const [result, setResult] = useState(null);
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const { error, setError, clearError, displayMessage } = useApiError();
 
   async function handleSubmit(event) {
     event.preventDefault();
     if (!files.length) {
-      setError("Selecione ao menos um arquivo .md ou .txt");
+      setError({
+        type: "validation",
+        message: "Selecione ao menos um arquivo .md ou .txt",
+      });
       return;
     }
 
     setLoading(true);
-    setError("");
+    clearError();
     setResult(null);
 
     try {
@@ -38,10 +43,29 @@ export default function UploadManual() {
       setResult(response.data);
     } catch (err) {
       const apiError = err?.response?.data;
-      const itemError = Array.isArray(apiError?.items)
-        ? apiError.items.find((item) => item?.status === "error")?.error
-        : "";
-      setError(apiError?.error || itemError || apiError?.message || "Falha ao indexar manual");
+      
+      // Tratar erros de validação de arquivo (SEC-003)
+      if (apiError?.details && Array.isArray(apiError.details)) {
+        setError({
+          type: "validation",
+          message: apiError.error || "Alguns arquivos falharam na validação",
+          details: apiError.details,
+        });
+      } else {
+        const statusCode = err?.response?.status;
+        const errorType = 
+          statusCode === 429 ? "ratelimit" :
+          statusCode === 401 ? "auth" :
+          statusCode === 408 ? "timeout" :
+          statusCode >= 500 ? "server" :
+          "validation";
+        
+        setError({
+          type: errorType,
+          message: apiError?.message || apiError?.error || "Falha ao indexar manual",
+          status: statusCode,
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -94,7 +118,13 @@ export default function UploadManual() {
         </button>
       </form>
 
-      {error && <p className="error">{error}</p>}
+      {error && (
+        <ErrorDisplay
+          error={error}
+          details={error?.details}
+          onDismiss={clearError}
+        />
+      )}
 
       {result && (
         <div className="result-box" style={{ marginTop: "1rem" }}>

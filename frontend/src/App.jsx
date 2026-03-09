@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import ErrorBoundary from "./components/ErrorBoundary";
 import Dashboard from "./pages/Dashboard";
 import ChatRag from "./pages/ChatRag";
 import Settings from "./pages/Settings";
@@ -22,8 +23,9 @@ export default function App() {
   };
 
   return (
-    <div className="layout">
-      <aside className="sidebar">
+    <ErrorBoundary>
+      <div className="layout">
+        <aside className="sidebar">
         <img src="/logo-harpia.png" alt="Harpia Vision" className="sidebar-logo" />
         <h1>Harpia</h1>
         <p className="sidebar-tagline">Pergunte. Entenda. Execute.</p>
@@ -67,5 +69,6 @@ export default function App() {
         </Routes>
       </main>
     </div>
+    </ErrorBoundary>
   );
 }
