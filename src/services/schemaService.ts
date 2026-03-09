@@ -10,6 +10,7 @@ import { SchemaDocument, transformDDLToDocuments } from "../sql/ddlTransformer";
 import { indexSchemaDocuments } from "../sql/schemaIndexer";
 import { buildRagMetadata, extractTableSuffix } from "../utils/ragMetadata";
 import { ragQueryCache } from "./ragQueryCache";
+import { QdrantIndexService } from "./vector-db/qdrantIndexService";
 
 const SCHEMA_DOCUMENTS_COLLECTION = "schema_documents";
 const SCHEMA_SQL_PATH = process.env.SCHEMA_SQL_PATH || "./docs/schema.sql";
@@ -17,6 +18,7 @@ const SCHEMA_SQL_PATH = process.env.SCHEMA_SQL_PATH || "./docs/schema.sql";
 export class SchemaService {
   private readonly parser = new SchemaParser();
   private readonly transformer = new SchemaTransformer();
+  private readonly indexService = new QdrantIndexService();
   private collectionReady = false;
 
   constructor(private readonly embeddingService: EmbeddingService) {}
@@ -128,6 +130,8 @@ export class SchemaService {
     try {
       await axios.get(`${env.qdrantUrl}/collections/${SCHEMA_DOCUMENTS_COLLECTION}`);
       this.collectionReady = true;
+      // Assegurar índices mesmo se collection já existe
+      await this.indexService.ensureIndices(SCHEMA_DOCUMENTS_COLLECTION);
       return;
     } catch (error: any) {
       if (error?.response?.status !== 404) throw error;
@@ -140,6 +144,8 @@ export class SchemaService {
       },
     });
     this.collectionReady = true;
+    // Criar índices após criar collection
+    await this.indexService.ensureIndices(SCHEMA_DOCUMENTS_COLLECTION);
   }
 
   private async loadSqlFile(): Promise<{ path: string; content: string }> {

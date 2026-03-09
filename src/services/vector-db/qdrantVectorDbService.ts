@@ -1,6 +1,7 @@
 import axios from "axios";
 import { DocumentChunk, SearchResult, VectorDbPort } from "../../types";
 import { env } from "../../utils/env";
+import { QdrantIndexService } from "./qdrantIndexService";
 
 type QdrantPoint = {
   id: string | number;
@@ -11,6 +12,11 @@ type QdrantPoint = {
 
 export class QdrantVectorDbService implements VectorDbPort {
   private collectionReady = false;
+  private indexService: QdrantIndexService;
+
+  constructor() {
+    this.indexService = new QdrantIndexService();
+  }
 
   private get collectionName(): string {
     return env.qdrantCollection;
@@ -26,6 +32,8 @@ export class QdrantVectorDbService implements VectorDbPort {
     try {
       await axios.get(`${this.baseUrl}/collections/${this.collectionName}`);
       this.collectionReady = true;
+      // Assegurar índices mesmo se collection já existe
+      await this.indexService.ensureIndices(this.collectionName);
       return;
     } catch (error: any) {
       if (error?.response?.status !== 404) throw error;
@@ -39,6 +47,8 @@ export class QdrantVectorDbService implements VectorDbPort {
     });
 
     this.collectionReady = true;
+    // Criar índices após criar collection
+    await this.indexService.ensureIndices(this.collectionName);
   }
 
   async upsert(documents: DocumentChunk[], embeddings: number[][]): Promise<void> {

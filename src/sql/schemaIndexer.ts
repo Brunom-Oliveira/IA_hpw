@@ -4,6 +4,7 @@ import { env } from "../utils/env";
 import { EmbeddingService } from "../services/llm/embeddingService";
 import { SchemaDocument } from "./ddlTransformer";
 import { buildRagMetadata, extractTableSuffix } from "../utils/ragMetadata";
+import { QdrantIndexService } from "../services/vector-db/qdrantIndexService";
 
 const COLLECTION_NAME = "schema_knowledge";
 
@@ -109,8 +110,12 @@ function estimateOverlapWords(words: string[], end: number, overlapTokens: numbe
 }
 
 async function ensureCollection(): Promise<void> {
+  const indexService = new QdrantIndexService();
+  
   try {
     await axios.get(`${env.qdrantUrl}/collections/${COLLECTION_NAME}`);
+    // Collection existe - assegurar índices
+    await indexService.ensureIndices(COLLECTION_NAME);
     return;
   } catch (error: any) {
     if (error?.response?.status !== 404) {
@@ -126,6 +131,9 @@ async function ensureCollection(): Promise<void> {
     },
   });
   console.info(`[schema][indexer] Colecao criada: ${COLLECTION_NAME}`);
+  
+  // Criar índices após criar collection
+  await indexService.ensureIndices(COLLECTION_NAME);
 }
 
 function normalizeVector(vector: number[]): number[] {
