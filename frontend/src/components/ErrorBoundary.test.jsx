@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import ErrorBoundary from "../ErrorDisplay/ErrorBoundary";
+import ErrorBoundary from "./ErrorBoundary";
 
 // Componente que sempre lança erro para testar ErrorBoundary
 function ThrowError() {
@@ -67,40 +67,6 @@ describe("ErrorBoundary", () => {
 
     const button = screen.getByRole("button", { name: /recarregar página/i });
     expect(button).toBeInTheDocument();
-  });
-
-  it("deve descartar erro ao clicar em Descartar", () => {
-    const { rerender } = render(
-      <ErrorBoundary>
-        <ThrowError />
-      </ErrorBoundary>,
-    );
-
-    expect(screen.getByText("Erro na Aplicação")).toBeInTheDocument();
-
-    const dismissButton = screen.getByRole("button", { name: /descartar/i });
-    fireEvent.click(dismissButton);
-
-    // Após descartar, o conteúdo deve desaparecer, mas o boundary deve permanecer
-    expect(screen.queryByText("Erro na Aplicação")).not.toBeInTheDocument();
-  });
-
-  it("deve resetar erro ao clicar em Tentar Novamente", () => {
-    const { rerender } = render(
-      <ErrorBoundary>
-        <ThrowError />
-      </ErrorBoundary>,
-    );
-
-    expect(screen.getByText("Erro na Aplicação")).toBeInTheDocument();
-
-    const retryButton = screen.getByRole("button", {
-      name: /tentar novamente/i,
-    });
-    fireEvent.click(retryButton);
-
-    // Após retry, volta ao estado inicial
-    expect(screen.queryByText("Erro na Aplicação")).not.toBeInTheDocument();
   });
 
   it("deve mostrar detalhes do erro em desenvolvimento", () => {

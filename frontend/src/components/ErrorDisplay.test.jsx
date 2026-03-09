@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import ErrorDisplay from "../components/ErrorDisplay";
+import ErrorDisplay from "./ErrorDisplay";
 
 describe("ErrorDisplay", () => {
   it("deve retornar null quando error é null", () => {
