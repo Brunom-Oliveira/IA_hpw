@@ -10,8 +10,8 @@
 ```
 ✅ IMPLEMENTADOS:    13/13 ajustes documentados
 ✅ FASE 5 ADICIONOU:  3 otimizações (HNSW + Cache + Benchmarks)
-🟢 NOVO:             API de feedback RAG (coleta de relevância)
-⚠️  PENDENTES:        1 melhoria não documentada
+🟢 NOVO:             API de feedback RAG (coleta de relevância) + métricas Prometheus
+⚠️  PENDENTES:        0 melhorias não documentadas
 📄 Plano de fine-tune: ver docs/RAG_FINETUNE_PROJECT.md (planejado)
 🔄 EM PRODUÇÃO:       Todos os 13 ajustes + Phase 5
 ```
@@ -165,19 +165,6 @@ Resultado: Validação de 10x + 25x improvements
 
 ---
 
-## ⚠️ AJUSTES PENDENTES (NÃO DOCUMENTADOS)
-
-### 1. 🔴 **Real-time monitoring (RAG Prometheus)**
-```
-Problema: Observabilidade limitada
-Solução Proposta: Expor métricas (latência por modo, hit de cache, taxa de feedback)
-Status: ❌ NÃO IMPLEMENTADO
-Impacto: Detecção rápida de regressões
-Esforço: 2 horas
-```
-
----
-
 ## 🎯 GAPS DE RAG A RESOLVER
 
 ### Atuais Funcionalidades
@@ -193,6 +180,8 @@ Esforço: 2 horas
 ✅ Boot warm-up          (14 queries pre-loaded)
 ✅ Structured metadata   (table_name, section, etc)
 ✅ Fallback responses    (sem LLM)
+✅ Feedback loop básico  (POST /api/rag/feedback)
+✅ Observabilidade       (GET /api/rag/metrics - Prometheus)
 ```
 
 ### Faltando Ainda
@@ -200,7 +189,6 @@ Esforço: 2 horas
 ```
 ❌ Multi-language support(apenas PT)
 ❌ A/B testing          (no reranking rules)
-❌ Real-time monitoring (Prometheus metrics for RAG)
 ```
 
 ---

@@ -18,6 +18,10 @@ const fakeSemanticCache = {
   add: async () => undefined,
 };
 
+const fakeMetrics = {
+  recordRequest: () => undefined,
+};
+
 const fakeVectorDb = {
   upsert: async () => undefined,
   search: async () => [],
@@ -38,6 +42,7 @@ describe("RAG adaptive context window", () => {
       fakeLlm as any,
       new QueryAnalysisService(),
       fakeSemanticCache as any,
+      fakeMetrics as any,
     );
 
     const diagnostics = service.getDiagnostics();
@@ -45,4 +50,3 @@ describe("RAG adaptive context window", () => {
     expect(diagnostics.config.available_context_tokens).toBeGreaterThan(500);
   });
 });
-

@@ -5,6 +5,7 @@ import { ClassificationController } from "../controllers/classificationControlle
 import { ChatController } from "../controllers/chatController";
 import { TranscribeController } from "../controllers/transcribeController";
 import { FeedbackController } from "../controllers/feedbackController";
+import { MetricsController } from "../controllers/metricsController";
 import { adminGuard } from "../middleware/adminGuard";
 import { validateRequest } from "../middleware/validateRequest";
 import { InsertDocumentsSchema, RagSearchSchema } from "../schemas/documents.schema";
@@ -17,6 +18,7 @@ export const createRoutes = (deps: {
   chatController: ChatController;
   transcribeController: TranscribeController;
   feedbackController: FeedbackController;
+  metricsController: MetricsController;
 }): Router => {
   const router = Router();
   const upload = multer({ dest: "uploads/" });
@@ -30,6 +32,7 @@ export const createRoutes = (deps: {
   router.post("/rag/reindex", adminGuard, deps.chatController.reindex);
   router.get("/rag/reindex/jobs/:jobId", adminGuard, deps.chatController.reindexJob);
   router.post("/rag/feedback", validateRequest(FeedbackSchema), deps.feedbackController.submit);
+  router.get("/rag/metrics", adminGuard, deps.metricsController.prometheus);
   router.post("/transcribe", upload.single("audio"), deps.transcribeController.transcribe);
   router.get("/health", (_req, res) => res.json({ ok: true }));
 

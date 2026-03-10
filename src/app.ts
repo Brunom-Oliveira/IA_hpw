@@ -24,6 +24,7 @@ import { KnowledgeController } from "./controllers/knowledgeController";
 import { SchemaController } from "./controllers/schemaController";
 import { PublicRagController } from "./controllers/publicRagController";
 import { FeedbackController } from "./controllers/feedbackController";
+import { MetricsController } from "./controllers/metricsController";
 import { RagMetadataReindexService } from "./services/ragMetadataReindexService";
 import { RagReindexQueueService } from "./services/ragReindexQueueService";
 import { cacheWarmingService } from "./services/cacheWarmingService";
@@ -61,6 +62,7 @@ export const buildApp = () => {
   const schemaController = container.resolve(SchemaController);
   const publicRagController = container.resolve(PublicRagController);
   const feedbackController = container.resolve(FeedbackController);
+  const metricsController = container.resolve(MetricsController);
 
   app.use(
     "/api",
@@ -70,6 +72,7 @@ export const buildApp = () => {
       chatController,
       transcribeController,
       feedbackController,
+      metricsController,
     }),
   );
   app.use(

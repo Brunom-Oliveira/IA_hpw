@@ -7,6 +7,7 @@ import { RagOpsStatus, ragOpsStatusService } from "./ragOpsStatusService";
 import { ragQueryCache } from "./ragQueryCache";
 import { QueryAnalysisService } from "./rag/queryAnalysisService";
 import { SemanticCacheService } from "./semanticCacheService";
+import { MetricsService } from "./metricsService";
 
 type QueryMode = "schema" | "procedure" | "troubleshooting" | "general";
 
@@ -40,6 +41,7 @@ export class RagService {
     @inject("LlmPort") private readonly llm: LlmPort,
     private readonly queryAnalysisService: QueryAnalysisService,
     private readonly semanticCache: SemanticCacheService,
+    private readonly metrics: MetricsService,
   ) {}
 
   async insertDocuments(input: Array<{ text: string; metadata?: Record<string, string | number | boolean> }>): Promise<string[]> {
@@ -60,23 +62,38 @@ export class RagService {
 
   async ask(question: string, topK?: number): Promise<RagResponse> {
     const analysis = this.queryAnalysisService.analyze(question);
+    const startedAt = Date.now();
+    let usedCache = false;
+    let usedSemantic = false;
+    let noContext = false;
     const queryEmbedding = await this.embeddingService.embed(analysis.expandedQuestion || analysis.originalQuestion);
 
     const semanticCached = await this.semanticCache.find(queryEmbedding);
     if (semanticCached) {
+      usedSemantic = true;
+      const duration = Date.now() - startedAt;
+      this.metrics.recordRequest(duration, { cacheHit: true, semanticHit: true, mode: analysis.mode });
       return { ...semanticCached, answer: `[CACHE SEMÂNTICO] ${semanticCached.answer}` };
     }
 
     const cacheKey = this.buildCacheKey(question, topK);
     const cached = ragQueryCache.get(cacheKey);
-    if (cached) return cached;
+    if (cached) {
+      usedCache = true;
+      const duration = Date.now() - startedAt;
+      this.metrics.recordRequest(duration, { cacheHit: true, mode: analysis.mode });
+      return cached;
+    }
 
     const curatedHits = await this.retrieveCuratedHits(analysis, queryEmbedding, topK);
     const contextData = this.buildContext(question, curatedHits, analysis);
 
     if (!contextData.trim()) {
+      noContext = true;
       const fallback = this.buildNoContextResponse(analysis);
       ragQueryCache.set(cacheKey, fallback);
+      const duration = Date.now() - startedAt;
+      this.metrics.recordRequest(duration, { cacheHit: false, semanticHit: false, noContext, mode: analysis.mode });
       return fallback;
     }
 
@@ -93,6 +110,8 @@ export class RagService {
 
     ragQueryCache.set(cacheKey, response, this.buildCacheMetadata(curatedHits));
     this.semanticCache.add(queryEmbedding, response);
+    const duration = Date.now() - startedAt;
+    this.metrics.recordRequest(duration, { cacheHit: usedCache, semanticHit: usedSemantic, noContext, mode: analysis.mode });
     return response;
   }
 
@@ -103,20 +122,30 @@ export class RagService {
     options?: { signal?: AbortSignal }
   ): Promise<void> {
     const analysis = this.queryAnalysisService.analyze(question);
+    const startedAt = Date.now();
+    let usedCache = false;
+    let usedSemantic = false;
+    let noContext = false;
     const queryEmbedding = await this.embeddingService.embed(analysis.expandedQuestion || analysis.originalQuestion);
     
     const semanticCached = await this.semanticCache.find(queryEmbedding);
     if (semanticCached) {
+      usedSemantic = true;
       onToken({ sources: semanticCached.sources || [], context: semanticCached.context });
       onToken({ content: `[CACHE SEMÂNTICO] ${semanticCached.answer}`, done: true, usage: semanticCached.usage });
+      const duration = Date.now() - startedAt;
+      this.metrics.recordRequest(duration, { cacheHit: true, semanticHit: true, mode: analysis.mode });
       return;
     }
 
     const cacheKey = this.buildCacheKey(question, topK);
     const cached = ragQueryCache.get(cacheKey);
     if (cached) {
+      usedCache = true;
       onToken({ sources: cached.sources || [], context: cached.context });
       onToken({ content: cached.answer, done: true, usage: cached.usage });
+      const duration = Date.now() - startedAt;
+      this.metrics.recordRequest(duration, { cacheHit: true, semanticHit: false, mode: analysis.mode });
       return;
     }
 
@@ -127,12 +156,15 @@ export class RagService {
     onToken({ sources, context: contextData });
 
     if (!contextData.trim()) {
+      noContext = true;
       const fallback = this.buildNoContextResponse(analysis);
       ragQueryCache.set(cacheKey, fallback);
       onToken({
         content: fallback.answer,
         done: true,
       });
+      const duration = Date.now() - startedAt;
+      this.metrics.recordRequest(duration, { cacheHit: false, semanticHit: false, noContext, mode: analysis.mode });
       return;
     }
 
@@ -165,6 +197,8 @@ export class RagService {
     };
     ragQueryCache.set(cacheKey, finalResponse, this.buildCacheMetadata(curatedHits));
     this.semanticCache.add(queryEmbedding, finalResponse);
+    const duration = Date.now() - startedAt;
+    this.metrics.recordRequest(duration, { cacheHit: usedCache, semanticHit: usedSemantic, noContext, mode: analysis.mode });
   }
 
   async search(query: string, topK = 4): Promise<SearchResult[]> {
