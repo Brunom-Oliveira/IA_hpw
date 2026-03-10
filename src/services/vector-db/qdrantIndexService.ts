@@ -107,16 +107,16 @@ export class QdrantIndexService {
         console.info(`[qdrant][index] ✅ Índice payload criado: ${field}`);
       } catch (error: any) {
         const status = error?.response?.status;
-        const code = error?.code;
         const msg = String(error?.message || "");
 
-        // 409 = índice já existe, 400/404 = campo ou rota não disponível ainda
-        const benignStatus = [409, 400, 404].includes(status);
-        const benignNetwork = ["ECONNRESET", "ECONNREFUSED"].includes(code) || msg.includes("socket hang up");
-
-        if (!benignStatus && !benignNetwork) {
-          console.warn(`[qdrant][index] ⚠️ Erro ao criar índice ${field}: ${msg}`);
+        // 409 = índice já existe, 400 = campo não existe (ignora)
+        if (status === 409 || status === 400) {
+          console.info(`[qdrant][index] ℹ️ Índice ${field} já existe ou campo ausente (status ${status})`);
+          continue;
         }
+
+        // 404 ou erros de rede: logar para visibilidade
+        console.warn(`[qdrant][index] ⚠️ Erro ao criar índice ${field}: status=${status} msg=${msg}`);
       }
     }
   }
