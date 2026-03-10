@@ -40,8 +40,8 @@ export const buildApp = () => {
 
   const app = express();
 
-  // Permitir identificar IP real atrás de proxy/load balancer (necessário para rate limiting)
-  app.set("trust proxy", true);
+  // Permitir identificar IP real atrás de proxy/local balancer sem deixar trust proxy totalmente permissivo
+  app.set("trust proxy", "loopback");
 
   // Ordem importa: primeiro requestId para logs/erros
   app.use(requestIdMiddleware);
