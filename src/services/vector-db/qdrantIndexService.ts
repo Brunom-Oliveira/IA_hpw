@@ -99,7 +99,7 @@ export class QdrantIndexService {
 
     for (const field of criticalFields) {
       try {
-        await axios.post(`${this.baseUrl}/collections/${collectionName}/index`, {
+        await axios.post(`${this.baseUrl}/collections/${collectionName}/points/index`, {
           field_name: field,
           field_schema: "keyword", // string exata
         });
