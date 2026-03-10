@@ -99,19 +99,23 @@ export class QdrantIndexService {
 
     for (const field of criticalFields) {
       try {
-        await axios.post(
-          `${this.baseUrl}/collections/${collectionName}/index`,
-          {
-            field_name: field,
-            field_schema: "keyword", // Tratado como string exato
-          },
-        );
+        await axios.post(`${this.baseUrl}/collections/${collectionName}/index`, {
+          field_name: field,
+          field_schema: "keyword", // string exata
+        });
 
         console.info(`[qdrant][index] ✅ Índice payload criado: ${field}`);
       } catch (error: any) {
-        // 409 = índice já existe, 400 = campo não existe
-        if (![409, 400].includes(error?.response?.status)) {
-          console.warn(`[qdrant][index] ⚠️ Erro ao criar índice ${field}: ${error?.message}`);
+        const status = error?.response?.status;
+        const code = error?.code;
+        const msg = String(error?.message || "");
+
+        // 409 = índice já existe, 400/404 = campo ou rota não disponível ainda
+        const benignStatus = [409, 400, 404].includes(status);
+        const benignNetwork = ["ECONNRESET", "ECONNREFUSED"].includes(code) || msg.includes("socket hang up");
+
+        if (!benignStatus && !benignNetwork) {
+          console.warn(`[qdrant][index] ⚠️ Erro ao criar índice ${field}: ${msg}`);
         }
       }
     }
