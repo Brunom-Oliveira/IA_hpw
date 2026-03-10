@@ -33,7 +33,14 @@ export const createRoutes = (deps: {
   router.get("/rag/reindex/jobs/:jobId", adminGuard, deps.chatController.reindexJob);
   router.post("/rag/feedback", validateRequest(FeedbackSchema), deps.feedbackController.submit);
   router.get("/rag/metrics", adminGuard, deps.metricsController.prometheus);
-  router.post("/transcribe", upload.single("audio"), deps.transcribeController.transcribe);
+  router.post(
+    "/transcribe",
+    upload.fields([
+      { name: "audio", maxCount: 1 },
+      { name: "file", maxCount: 1 }, // compatibilidade com clientes que enviam 'file'
+    ]),
+    deps.transcribeController.transcribe,
+  );
   router.get("/health", (_req, res) => res.json({ ok: true }));
 
   return router;

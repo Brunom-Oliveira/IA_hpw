@@ -14,13 +14,13 @@ services:
       QDRANT_URL: http://qdrant:6333
       OLLAMA_BASE_URL: http://ollama:11434
       EMBEDDING_MODEL: nomic-embed-text:latest
-      LLM_MODEL: granite4:3b
-      OLLAMA_TIMEOUT_MS: 180000
+      LLM_MODEL: mistral:latest
+      OLLAMA_TIMEOUT_MS: 90000
       OLLAMA_EMBED_TIMEOUT_MS: 120000
       OLLAMA_EMBED_RETRIES: 2
-      RAG_MAX_OUTPUT_TOKENS: 160
+      RAG_MAX_OUTPUT_TOKENS: 80
       RAG_MAX_OUTPUT_TOKENS_LOOKUP: 90
-      RAG_NUM_CTX: 1024
+      RAG_NUM_CTX: 800
       RAG_TOPK_DEFAULT: 2
       RAG_TOPK_MAX: 3
       RAG_MIN_SCORE: 0.15
@@ -28,7 +28,7 @@ services:
       RAG_CACHE_MAX_ITEMS: 300
       RAG_KEEP_ALIVE: 5m
       WHISPER_BIN_PATH: /opt/whisper.cpp/build/bin/whisper-cli
-      WHISPER_MODEL_PATH: /app/models/ggml-medium.bin
+      WHISPER_MODEL_PATH: /app/models/ggml-small.bin
       WHISPER_LANGUAGE: pt
       LD_LIBRARY_PATH: /opt/whisper.cpp/build/src:/opt/whisper.cpp/build/ggml/src:/opt/whisper.cpp/build/ggml/src/ggml-cpu
     ports:

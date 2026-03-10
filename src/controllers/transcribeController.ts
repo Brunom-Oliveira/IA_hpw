@@ -9,7 +9,15 @@ export class TranscribeController {
   constructor(@inject(WhisperService) private readonly whisperService: WhisperService) {}
 
   transcribe = async (req: Request, res: Response): Promise<void> => {
-    const filePath = req.file?.path;
+    // Suporta tanto upload.single("audio") quanto upload.fields(["audio","file"])
+    const anyFiles = (req as any).files as Record<string, any[]> | undefined;
+    const fallbackFile = Array.isArray(anyFiles?.audio) && anyFiles.audio[0]?.path
+      ? anyFiles.audio[0].path
+      : Array.isArray(anyFiles?.file) && anyFiles.file[0]?.path
+        ? anyFiles.file[0].path
+        : undefined;
+
+    const filePath = req.file?.path || fallbackFile;
 
     if (!filePath) {
       res.status(400).json({ error: "Arquivo de audio nao enviado" });
