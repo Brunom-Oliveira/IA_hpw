@@ -31,14 +31,20 @@ export function validateFile(
   config: FileValidationConfig = DEFAULT_CONFIG,
 ): boolean {
   // Validar MIME type
-  if (
-    config.allowedMimeTypes &&
-    !config.allowedMimeTypes.includes(file.mimetype)
-  ) {
-    throw new FileValidationError(
-      `Tipo de arquivo não permitido: ${file.mimetype}. ` +
-        `Permitidos: ${config.allowedMimeTypes.join(", ")}`,
-    );
+  if (config.allowedMimeTypes) {
+    const mime = file.mimetype || "";
+    const ext = path.extname(file.originalname).toLowerCase();
+    const mimePermitido =
+      config.allowedMimeTypes.includes(mime) ||
+      (mime === "application/octet-stream" &&
+        config.allowedExtensions?.includes(ext));
+
+    if (!mimePermitido) {
+      throw new FileValidationError(
+        `Tipo de arquivo não permitido: ${mime}. ` +
+          `Permitidos: ${config.allowedMimeTypes.join(", ")}`,
+      );
+    }
   }
 
   // Validar tamanho
