@@ -31,6 +31,7 @@ export const env = {
   qdrantCollection: process.env.QDRANT_COLLECTION ?? "knowledge_base",
   qdrantVectorSize: toNumber(process.env.QDRANT_VECTOR_SIZE, 768),
   qdrantDistance: process.env.QDRANT_DISTANCE ?? "Cosine",
+  qdrantSkipPayloadIndex: process.env.QDRANT_SKIP_PAYLOAD_INDEX === "true",
   whisperBinPath: process.env.WHISPER_BIN_PATH ?? "whisper-cli",
   whisperModelPath: process.env.WHISPER_MODEL_PATH ?? "./models/ggml-base.bin",
   whisperLanguage: process.env.WHISPER_LANGUAGE ?? "pt",

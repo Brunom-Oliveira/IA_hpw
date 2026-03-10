@@ -28,6 +28,11 @@ export class QdrantIndexService {
       // Criar índice HNSW para vectors
       await this.createHnswIndex(collectionName);
 
+      if (env.qdrantSkipPayloadIndex) {
+        console.info("[qdrant][index] Payload index skip solicitado (QDRANT_SKIP_PAYLOAD_INDEX=true)");
+        return;
+      }
+
       // Criar índices de payload para campos críticos
       await this.createPayloadIndices(collectionName);
 
@@ -115,8 +120,8 @@ export class QdrantIndexService {
           continue;
         }
 
-        // 404 ou erros de rede: logar para visibilidade
-        console.warn(`[qdrant][index] ⚠️ Erro ao criar índice ${field}: status=${status} msg=${msg}`);
+        // 404 ou erros de rede: logar como info para não poluir
+        console.info(`[qdrant][index] ℹ️ Índice ${field} não criado (status=${status}) msg=${msg}`);
       }
     }
   }
