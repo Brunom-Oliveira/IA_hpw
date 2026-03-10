@@ -76,7 +76,7 @@ services:
       - redis_data:/data
 
   qdrant:
-    image: qdrant/qdrant:latest
+    image: qdrant/qdrant:v1.9.0
     container_name: harpia-qdrant
     restart: unless-stopped
     ports:
