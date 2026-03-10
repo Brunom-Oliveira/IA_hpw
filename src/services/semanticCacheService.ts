@@ -82,7 +82,7 @@ export class SemanticCacheService {
       const query = `*=>[KNN 1 @embedding $vector AS score]`;
       const vectorBuffer = Buffer.from(new Float32Array(embedding).buffer);
 
-      const result = await this.redis.call(
+      const result = (await this.redis.call(
         "FT.SEARCH",
         CACHE_INDEX_NAME,
         query,
@@ -92,13 +92,13 @@ export class SemanticCacheService {
         vectorBuffer,
         "DIALECT",
         "2"
-      );
+      )) as any[];
 
-      if (result && result.length > 1) {
-        const doc = result[2];
+      if (Array.isArray(result) && result.length > 3 && Array.isArray(result[2])) {
+        const doc = result[2] as any[];
         const score = parseFloat(doc[1]);
 
-        if (score >= env.semanticCacheThreshold) {
+        if (Number.isFinite(score) && score >= env.semanticCacheThreshold && typeof doc[3] === "string") {
           const payload = JSON.parse(doc[3]) as CachedData;
           return payload.response;
         }

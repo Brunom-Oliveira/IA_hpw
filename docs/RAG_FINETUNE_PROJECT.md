@@ -2,7 +2,7 @@
 
 **Data**: 10/03/2026  
 **Responsavel**: Squad IA  
-**Status**: Planejado (aguardando aprovacao)
+**Status**: Em andamento (scaffold criado, aguardando dataset real)
 
 ---
 
@@ -23,7 +23,7 @@
 ## 3) Entregaveis
 1. Dataset de treino/validacao/teste rotulado (JSONL).
 2. Script de preparo de dados (limpeza, split, dedup).
-3. Script de treino (fine-tune) + config de hiperparametros.
+3. Script de treino (fine-tune) + config de hiperparametros (placeholder criado).
 4. Suite de avaliacao offline com metricas de fidelidade.
 5. Plano de rollout (A/B) e rollback.
 6. Documentacao atualizada (este doc + updates no INDEX).
@@ -111,4 +111,13 @@
 - [ ] Flag de rollout configurada e testada.
 - [ ] Dashboard de monitoramento ativo.
 - [ ] Plano de rollback validado.
+- [ ] Model version registrada em .env e docs.
 
+## 15) Comandos úteis (scaffold atual)
+```bash
+# Preparar dataset (lê data/finetune/raw/*.jsonl e gera dataset.jsonl)
+npm run ft:prepare
+
+# Placeholder de treino (valida dataset e orienta próximo passo)
+npm run ft:train
+```

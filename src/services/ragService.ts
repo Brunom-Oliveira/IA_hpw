@@ -6,17 +6,11 @@ import { EmbeddingService } from "./llm/embeddingService";
 import { RagOpsStatus, ragOpsStatusService } from "./ragOpsStatusService";
 import { ragQueryCache } from "./ragQueryCache";
 import { QueryAnalysisService } from "./rag/queryAnalysisService";
+import { QueryAnalysis } from "../types";
 import { SemanticCacheService } from "./semanticCacheService";
 import { MetricsService } from "./metricsService";
 
 type QueryMode = "schema" | "procedure" | "troubleshooting" | "general";
-
-type QueryAnalysis = {
-  mode: QueryMode;
-  tableHints: string[];
-  terms: string[];
-  normalizedQuestion: string;
-};
 
 type RankedHit = {
   hit: SearchResult;

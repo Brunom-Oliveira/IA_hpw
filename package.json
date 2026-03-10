@@ -11,7 +11,9 @@
     "test:watch": "vitest",
     "lint": "tsc --noEmit",
     "index:docs": "tsx src/scripts/index-documents.ts",
-    "reindex:rag-metadata": "tsx src/scripts/reindex-rag-metadata.ts"
+    "reindex:rag-metadata": "tsx src/scripts/reindex-rag-metadata.ts",
+    "ft:prepare": "tsx scripts/finetune/prepare-dataset.ts",
+    "ft:train": "tsx scripts/finetune/train-placeholder.ts"
   },
   "keywords": [
     "nodejs",
