@@ -296,10 +296,12 @@ MTTR (debug)            30 min    5 min       6x ✅
 **Status: Sistema está em PRODUCTION READY**
 
 ### Próximas Oportunidades (Não Críticas)
-- [ ] Semantic Cache (Redis) - 3 horas
-- [ ] Query Expansion - 1 hora  
-- [ ] User Feedback Loop - 6 horas
-- [ ] RAG Monitoring (Prometheus) - 2 horas
+- [x] Semantic Cache (Redis) - 3 horas — implementado (`semanticCacheService` + warm-up no boot)
+- [x] Query Expansion - 1 hora — implementado (query analysis + context adaptativo)
+- [ ] User Feedback Loop - 6 horas — backend pronto (`/api/rag/feedback`), UI pendente
+- [x] RAG Monitoring (Prometheus) - 2 horas — implementado (`/api/rag/metrics`)
+
+**Atualização 10/03/2026**: rate limiting global/rotas críticas ajustado para compatibilidade IPv6 (remoção de `keyGenerator` custom inválido).
 
 ### Prioridade
 Se quer MÁXIMO IMPACTO: Semantic Cache (3h) = +30% hit rate
