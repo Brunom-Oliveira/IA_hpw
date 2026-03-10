@@ -40,6 +40,9 @@ export const buildApp = () => {
 
   const app = express();
 
+  // Permitir identificar IP real atrás de proxy/load balancer (necessário para rate limiting)
+  app.set("trust proxy", true);
+
   // Ordem importa: primeiro requestId para logs/erros
   app.use(requestIdMiddleware);
   app.use(cors());
