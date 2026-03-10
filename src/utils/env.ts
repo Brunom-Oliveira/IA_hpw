@@ -11,6 +11,9 @@ const toNumber = (value: string | undefined, fallback: number): number => {
 export const env = {
   nodeEnv: process.env.NODE_ENV ?? "development",
   port: toNumber(process.env.PORT, 3000),
+  redisUrl: process.env.REDIS_URL ?? "redis://localhost:6379",
+  semanticCacheTtl: toNumber(process.env.SEMANTIC_CACHE_TTL_S, 3600),
+  semanticCacheThreshold: toNumber(process.env.SEMANTIC_CACHE_THRESHOLD, 0.95),
   llmProvider: process.env.LLM_PROVIDER ?? "ollama",
   ollamaBaseUrl: process.env.OLLAMA_BASE_URL ?? "http://localhost:11434",
   ollamaTimeoutMs: toNumber(process.env.OLLAMA_TIMEOUT_MS, 180000),

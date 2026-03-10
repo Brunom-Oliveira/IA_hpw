@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { promises as fs } from "node:fs";
+import { singleton } from "tsyringe";
 import { RagService } from "../services/ragService";
 import { buildRagMetadata } from "../utils/ragMetadata";
 import { validateFiles } from "../utils/fileValidator";
@@ -9,6 +10,7 @@ const MANUAL_CHUNK_OVERLAP = Number(
   process.env.MANUAL_UPLOAD_CHUNK_OVERLAP || 250,
 );
 
+@singleton()
 export class DocumentController {
   constructor(private readonly ragService: RagService) {}
 

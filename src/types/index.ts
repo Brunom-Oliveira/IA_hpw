@@ -15,6 +15,8 @@ export interface QueryAnalysis {
   mode: "schema" | "troubleshooting" | "procedure" | "general";
   tableHints: string[];
   terms: string[];
+  originalQuestion: string;
+  expandedQuestion?: string;
   normalizedQuestion: string;
 }
 

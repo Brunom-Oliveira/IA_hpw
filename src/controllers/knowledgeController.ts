@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
+import { singleton } from "tsyringe";
 import { KnowledgeService } from "../services/knowledgeService";
 
+@singleton()
 export class KnowledgeController {
   constructor(private readonly knowledgeService: KnowledgeService) {}
 

@@ -41,88 +41,93 @@
 
 ### CRÍTICOS (Resolver Agora)
 
-| # | Problema | Impacto | Esforço | Risco |
-|---|----------|---------|---------|-------|
-| 1 | **ADRs não documentadas** | Decisões arquiteturais não registradas | 2h | Alto |
-| 2 | **OpenAPI/Swagger ausente** | Documentação de API incompleta | 3h | Médio |
-| 3 | **README desatualizado** | Instruções de setup incorretas | 1h | Alto |
-| 4 | **Secrets em .env-example** | Segurança: chaves expostas? | 1h | Crítico |
+| #   | Problema                    | Impacto                                | Esforço | Risco   |
+| --- | --------------------------- | -------------------------------------- | ------- | ------- |
+| 1   | **ADRs não documentadas**   | Decisões arquiteturais não registradas | 2h      | Alto    |
+| 2   | **OpenAPI/Swagger ausente** | Documentação de API incompleta         | 3h      | Médio   |
+| 3   | **README desatualizado**    | Instruções de setup incorretas         | 1h      | Alto    |
+| 4   | **Secrets em .env-example** | Segurança: chaves expostas?            | 1h      | Crítico |
 
 ### ALTOS (Próximas 2 Semanas)
 
-| # | Problema | Impacto | Esforço | Risco |
-|---|----------|---------|---------|-------|
-| 5 | **Monitoring/Observability** | Sem logs estruturados em produção | 4h | Alto |
-| 6 | **CI/CD Pipeline** | CI/CD manual ou inexistente | 3h | Alto |
-| 7 | **Load Testing** | Sem validação em alta carga | 2h | Médio |
-| 8 | **Multi-instance support** | Scaling horizontal limitado | 4h | Médio |
+| #   | Problema                     | Impacto                           | Esforço | Risco |
+| --- | ---------------------------- | --------------------------------- | ------- | ----- |
+| 5   | **Monitoring/Observability** | Sem logs estruturados em produção | 4h      | Alto  |
+| 6   | **CI/CD Pipeline**           | CI/CD manual ou inexistente       | 3h      | Alto  |
+| 7   | **Load Testing**             | Sem validação em alta carga       | 2h      | Médio |
+| 8   | **Multi-instance support**   | Scaling horizontal limitado       | 4h      | Médio |
 
 ### MÉDIOS (Próximo Mês)
 
-| # | Problema | Impacto | Esforço | Risco |
-|---|----------|---------|---------|-------|
-| 9 | **Disaster Recovery** | Sem backup/restore automatizado | 3h | Alto |
-| 10 | **Performance Monitoring** | Sem dashboards de perf real-time | 4h | Baixo |
-| 11 | **Advanced Caching** | Cache apenas em memória | 3h | Baixo |
-| 12 | **A/B Testing Framework** | Sem suporte a feature flags | 3h | Baixo |
+| #   | Problema                   | Impacto                          | Esforço | Risco |
+| --- | -------------------------- | -------------------------------- | ------- | ----- |
+| 9   | **Disaster Recovery**      | Sem backup/restore automatizado  | 3h      | Alto  |
+| 10  | **Performance Monitoring** | Sem dashboards de perf real-time | 4h      | Baixo |
+| 11  | **Advanced Caching**       | Cache apenas em memória          | 3h      | Baixo |
+| 12  | **A/B Testing Framework**  | Sem suporte a feature flags      | 3h      | Baixo |
 
 ---
 
 ## 🎯 TOP 5 PRIORIDADES
 
-### 1️⃣ **[CRÍTICO] Documentar ADRs (Architecture Decision Records)** 
-   - **Por quê**: Decisões arquiteturais devem ser registradas
-   - **Impacto**: Facilita onboarding, evita re-decisões
-   - **Esforço**: 2 horas
-   - **Tarefas**:
-     - ADR-001: Por que Qdrant (não ChromaDB)
-     - ADR-002: Validação com Zod
-     - ADR-003: Global error handler
-     - ADR-004: HNSW indices strategy
-   - **Arquivo**: `docs/adr/`
+### 1️⃣ **[CRÍTICO] Documentar ADRs (Architecture Decision Records)**
+
+- **Por quê**: Decisões arquiteturais devem ser registradas
+- **Impacto**: Facilita onboarding, evita re-decisões
+- **Esforço**: 2 horas
+- **Tarefas**:
+  - ADR-001: Por que Qdrant (não ChromaDB)
+  - ADR-002: Validação com Zod
+  - ADR-003: Global error handler
+  - ADR-004: HNSW indices strategy
+- **Arquivo**: `docs/adr/`
 
 ### 2️⃣ **[CRÍTICO] Criar OpenAPI/Swagger Specification**
-   - **Por quê**: Documentação viva de API, enables client generation
-   - **Impacto**: Reduz confusão entre frontend/backend
-   - **Esforço**: 3 horas
-   - **Tarefas**:
-     - Endpoints documentados
-     - Schemas validados
-     - Error responses
-     - Authentication
-   - **Arquivo**: `docs/openapi.yaml` ou `/api/docs`
+
+- **Por quê**: Documentação viva de API, enables client generation
+- **Impacto**: Reduz confusão entre frontend/backend
+- **Esforço**: 3 horas
+- **Tarefas**:
+  - Endpoints documentados
+  - Schemas validados
+  - Error responses
+  - Authentication
+- **Arquivo**: `docs/openapi.yaml` ou `/api/docs`
 
 ### 3️⃣ **[CRÍTICO] Atualizar README com instruções atualizadas**
-   - **Por quê**: README está com encoding quebrado, instruções desatualizado
-   - **Impacto**: Setup falha para novos desenvolvedores
-   - **Esforço**: 1 hora
-   - **Tarefas**:
-     - Reescrever com status atual (5 fases)
-     - Adicionar troubleshooting
-     - Links para documentação completa
-   - **Arquivo**: `README.md`
+
+- **Por quê**: README está com encoding quebrado, instruções desatualizado
+- **Impacto**: Setup falha para novos desenvolvedores
+- **Esforço**: 1 hora
+- **Tarefas**:
+  - Reescrever com status atual (5 fases)
+  - Adicionar troubleshooting
+  - Links para documentação completa
+- **Arquivo**: `README.md`
 
 ### 4️⃣ **[ALTO] Implementar Observability & Monitoring**
-   - **Por quê**: Produção sem logs estruturados é cego
-   - **Impacto**: Detecta problemas antes do usuário
-   - **Esforço**: 4 horas
-   - **Tarefas**:
-     - Winston/Pino logger configurado
-     - Structured logging (JSON)
-     - Prometheus metrics
-     - Log aggregation prep
-   - **Arquivo**: `src/utils/logger.ts` (já existe)
+
+- **Por quê**: Produção sem logs estruturados é cego
+- **Impacto**: Detecta problemas antes do usuário
+- **Esforço**: 4 horas
+- **Tarefas**:
+  - Winston/Pino logger configurado
+  - Structured logging (JSON)
+  - Prometheus metrics
+  - Log aggregation prep
+- **Arquivo**: `src/utils/logger.ts` (já existe)
 
 ### 5️⃣ **[ALTO] Setup CI/CD Pipeline**
-   - **Por quê**: Builds e deploys manual é frágil
-   - **Impacto**: Reduz erros de deployment, acelera iteração
-   - **Esforço**: 3 horas
-   - **Tarefas**:
-     - GitHub Actions workflow
-     - Automated tests on PR
-     - Build verification
-     - Auto-deploy to staging
-   - **Arquivo**: `.github/workflows/`
+
+- **Por quê**: Builds e deploys manual é frágil
+- **Impacto**: Reduz erros de deployment, acelera iteração
+- **Esforço**: 3 horas
+- **Tarefas**:
+  - GitHub Actions workflow
+  - Automated tests on PR
+  - Build verification
+  - Auto-deploy to staging
+- **Arquivo**: `.github/workflows/`
 
 ---
 
@@ -262,6 +267,7 @@
 ## 🎬 PLANO DE AÇÃO (PRÓXIMAS 24 HORAS)
 
 ### Task 1: README Update (1h)
+
 ```bash
 # 1. Reescrever README com:
 #    - Status atual (5 fases, 156 testes)
@@ -273,6 +279,7 @@
 ```
 
 ### Task 2: Create ADRs (2h)
+
 ```
 docs/adr/
 ├─ 001-qdrant-selection.md
@@ -284,6 +291,7 @@ Each ADR: Status | Context | Decision | Consequences | Alternatives
 ```
 
 ### Task 3: Enhance Health Checks (1h)
+
 ```typescript
 // Adicionar em src/controllers/healthController.ts:
 - /health/live   (liveness: responding)
@@ -292,6 +300,7 @@ Each ADR: Status | Context | Decision | Consequences | Alternatives
 ```
 
 ### Task 4: Start CI/CD (2h)
+
 ```yaml
 # .github/workflows/test.yml
 - On PR: run tests
@@ -304,6 +313,7 @@ Each ADR: Status | Context | Decision | Consequences | Alternatives
 ## 📊 IMPACTO ESPERADO
 
 ### Curto Prazo (24-48h com tasks acima)
+
 ```
 √ README functional → +20% onboarding speed
 √ ADRs documented → knowledge preservation
@@ -312,6 +322,7 @@ Each ADR: Status | Context | Decision | Consequences | Alternatives
 ```
 
 ### Médio Prazo (1-2 semanas)
+
 ```
 √ OpenAPI docs → -30% API confusion
 √ Structured logging → +debugging speed
@@ -319,6 +330,7 @@ Each ADR: Status | Context | Decision | Consequences | Alternatives
 ```
 
 ### Longo Prazo (1+ mês)
+
 ```
 √ Multi-instance ready → horizontal scaling possible
 √ Disaster recovery → data protection
@@ -361,4 +373,4 @@ Qual é a sua **prioridade #1**?
 
 ---
 
-*Análise completa - Próximo passo: Escolher prioridade*
+_Análise completa - Próximo passo: Escolher prioridade_

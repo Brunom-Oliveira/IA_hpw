@@ -1,7 +1,9 @@
 import { Request, Response } from "express";
+import { singleton } from "tsyringe";
 import { PdfIngestService } from "../services/pdfIngestService";
 import { RagService } from "../services/ragService";
 
+@singleton()
 export class PublicRagController {
   constructor(
     private readonly ragService: RagService,

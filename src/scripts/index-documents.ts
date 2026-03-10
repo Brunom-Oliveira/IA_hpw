@@ -1,8 +1,9 @@
+import "reflect-metadata";
 import path from "path";
 import { promises as fs } from "fs";
 import pdfParse from "pdf-parse";
+import { container } from "tsyringe";
 import { QdrantVectorDbService } from "../services/vector-db/qdrantVectorDbService";
-import { EmbeddingService } from "../services/llm/embeddingService";
 import { LlmService } from "../services/llm/llmService";
 import { RagService } from "../services/ragService";
 import { chunkText } from "../utils/text";
@@ -23,14 +24,13 @@ const readFileContent = async (filePath: string): Promise<string> => {
 };
 
 const run = async () => {
+  container.register("VectorDbPort", { useClass: QdrantVectorDbService });
+  container.register("LlmPort", { useClass: LlmService });
+
   const targetDir = path.resolve(process.cwd(), "data/documents");
   const files = await fs.readdir(targetDir);
 
-  const ragService = new RagService(
-    new QdrantVectorDbService(),
-    new EmbeddingService(),
-    new LlmService(),
-  );
+  const ragService = container.resolve(RagService);
   const docs: Array<{ text: string; metadata: Record<string, string> }> = [];
 
   for (const fileName of files) {

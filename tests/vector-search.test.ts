@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { RagService } from "../src/services/ragService";
 import { ragQueryCache } from "../src/services/ragQueryCache";
 import { LlmPort, VectorDbPort } from "../src/types";
+import { QueryAnalysisService } from "../src/services/rag/queryAnalysisService";
 
 const fakeUsage = {
   promptTokens: 10,
@@ -23,6 +24,13 @@ const fakeLlm: LlmPort = {
   generateStream: vi.fn(async () => undefined),
 };
 
+const fakeQueryAnalysisService = new QueryAnalysisService();
+
+const fakeSemanticCacheService = {
+  find: vi.fn(async () => null),
+  add: vi.fn(async () => undefined),
+};
+
 describe("RagService", () => {
   afterEach(() => {
     vi.clearAllMocks();
@@ -36,7 +44,7 @@ describe("RagService", () => {
       search: vi.fn(async () => []),
     };
 
-    const service = new RagService(vectorDb, fakeEmbeddingService as any, fakeLlm);
+    const service = new RagService(vectorDb, fakeEmbeddingService as any, fakeLlm, fakeQueryAnalysisService, fakeSemanticCacheService as any);
     const ids = await service.insertDocuments([
       { text: "Documento A", metadata: { category: "manual" } },
       { text: "Documento B", metadata: { category: "schema" } },
@@ -72,7 +80,7 @@ describe("RagService", () => {
       ]),
     };
 
-    const service = new RagService(vectorDb, fakeEmbeddingService as any, fakeLlm);
+    const service = new RagService(vectorDb, fakeEmbeddingService as any, fakeLlm, fakeQueryAnalysisService, fakeSemanticCacheService as any);
     const result = await service.ask("qual e o campo de mercadoria da tabela 461", 2);
 
     expect(result.context).toContain("MERCADORIA_461");
@@ -119,7 +127,7 @@ describe("RagService", () => {
       ]),
     };
 
-    const service = new RagService(vectorDb, fakeEmbeddingService as any, fakeLlm);
+    const service = new RagService(vectorDb, fakeEmbeddingService as any, fakeLlm, fakeQueryAnalysisService, fakeSemanticCacheService as any);
     const result = await service.ask("quais campos existem na tabela 461", 2);
 
     expect(result.context).toContain("Campos e relacoes da tabela alvo");
@@ -144,7 +152,7 @@ describe("RagService", () => {
       ]),
     };
 
-    const service = new RagService(vectorDb, fakeEmbeddingService as any, fakeLlm);
+    const service = new RagService(vectorDb, fakeEmbeddingService as any, fakeLlm, fakeQueryAnalysisService, fakeSemanticCacheService as any);
     const result = await service.ask("qual e o campo de mercadoria da tabela 461", 2);
 
     expect(fakeLlm.generate).not.toHaveBeenCalled();
@@ -193,7 +201,7 @@ describe("RagService", () => {
       ]),
     };
 
-    const service = new RagService(vectorDb, fakeEmbeddingService as any, fakeLlm);
+    const service = new RagService(vectorDb, fakeEmbeddingService as any, fakeLlm, fakeQueryAnalysisService, fakeSemanticCacheService as any);
     const result = await service.ask("como fazer recebimento de mercadoria", 3);
 
     expect(result.sources).toEqual([
@@ -224,7 +232,7 @@ describe("RagService", () => {
       ]),
     };
 
-    const service = new RagService(vectorDb, fakeEmbeddingService as any, fakeLlm);
+    const service = new RagService(vectorDb, fakeEmbeddingService as any, fakeLlm, fakeQueryAnalysisService, fakeSemanticCacheService as any);
     const first = await service.ask("qual e a chave da tabela 461", 1);
     const second = await service.ask("qual e a chave da tabela 461", 1);
 

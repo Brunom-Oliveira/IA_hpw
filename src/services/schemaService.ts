@@ -1,6 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 import axios from "axios";
+import { singleton } from "tsyringe";
 import { env } from "../utils/env";
 import { EmbeddingService } from "./llm/embeddingService";
 import { SchemaTransformer } from "./schemaTransformer";
@@ -15,6 +16,7 @@ import { QdrantIndexService } from "./vector-db/qdrantIndexService";
 const SCHEMA_DOCUMENTS_COLLECTION = "schema_documents";
 const SCHEMA_SQL_PATH = process.env.SCHEMA_SQL_PATH || "./docs/schema.sql";
 
+@singleton()
 export class SchemaService {
   private readonly parser = new SchemaParser();
   private readonly transformer = new SchemaTransformer();

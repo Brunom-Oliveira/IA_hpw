@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
+import { singleton } from "tsyringe";
 import { ClassificationService } from "../services/classificationService";
 
+@singleton()
 export class ClassificationController {
   constructor(private readonly service: ClassificationService) {}
 
@@ -17,4 +19,3 @@ export class ClassificationController {
     res.json(result);
   };
 }
-

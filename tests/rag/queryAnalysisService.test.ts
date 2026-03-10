@@ -35,4 +35,19 @@ describe("QueryAnalysisService", () => {
     expect(analysis.terms).toEqual(["estrutura", "tabela", "produto_123"]);
     expect(analysis.normalizedQuestion).toBe("qual e a estrutura da tabela produto_123");
   });
+
+  it("expande uma query curta para melhorar a busca", () => {
+    const analysis = service.analyze("ajuda");
+    expect(analysis.originalQuestion).toBe("ajuda");
+    expect(analysis.expandedQuestion).toBe("Qual o procedimento ou significado de: ajuda?");
+    expect(analysis.normalizedQuestion).toBe("qual o procedimento ou significado de ajuda");
+  });
+
+  it("nao expande uma query com mais de 3 palavras", () => {
+    const query = "como configuro meu computador novo";
+    const analysis = service.analyze(query);
+    expect(analysis.originalQuestion).toBe(query);
+    expect(analysis.expandedQuestion).toBeUndefined();
+    expect(analysis.normalizedQuestion).toBe("como configuro meu computador novo");
+  });
 });

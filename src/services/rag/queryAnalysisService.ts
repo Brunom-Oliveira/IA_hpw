@@ -2,40 +2,23 @@ import { singleton } from "tsyringe";
 import { QueryAnalysis } from "../../types";
 
 const STOP_WORDS = new Set([
-  "a",
-  "ao",
-  "aos",
-  "as",
-  "com",
-  "como",
-  "da",
-  "das",
-  "de",
-  "do",
-  "dos",
-  "e",
-  "em",
-  "na",
-  "nas",
-  "no",
-  "nos",
-  "o",
-  "os",
-  "ou",
-  "para",
-  "por",
-  "qual",
-  "quais",
-  "que",
-  "se",
-  "uma",
-  "um",
+  "a", "ao", "aos", "as", "com", "como", "da", "das", "de", "do", "dos", "e", "em", "na", "nas", "no", "nos", "o", "os", "ou", "para", "por", "qual", "quais", "que", "se", "uma", "um",
 ]);
+
+const MIN_WORDS_FOR_EXPANSION = 3;
 
 @singleton()
 export class QueryAnalysisService {
   public analyze(question: string): QueryAnalysis {
-    const normalizedQuestion = this.normalizeText(question);
+    let expandedQuestion: string | undefined;
+    const wordCount = question.trim().split(/\s+/).length;
+
+    if (wordCount <= MIN_WORDS_FOR_EXPANSION) {
+      expandedQuestion = `Qual o procedimento ou significado de: ${question}?`;
+    }
+
+    const questionToAnalyze = expandedQuestion || question;
+    const normalizedQuestion = this.normalizeText(questionToAnalyze);
     const tableHints = this.extractTableHints(question);
     const terms = normalizedQuestion
       .split(" ")
@@ -54,6 +37,8 @@ export class QueryAnalysisService {
       mode: hasSchemaSignal ? "schema" : hasTroubleshootingSignal ? "troubleshooting" : hasProcedureSignal ? "procedure" : "general",
       tableHints,
       terms,
+      originalQuestion: question,
+      expandedQuestion,
       normalizedQuestion,
     };
   }

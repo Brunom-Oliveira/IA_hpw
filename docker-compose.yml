@@ -10,6 +10,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 8090
+      REDIS_URL: redis://redis:6379
       QDRANT_URL: http://qdrant:6333
       OLLAMA_BASE_URL: http://ollama:11434
       EMBEDDING_MODEL: nomic-embed-text:latest
@@ -41,6 +42,8 @@ services:
         condition: service_started
       ollama:
         condition: service_healthy
+      redis:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8090/api/health || exit 1"]
       interval: 30s
@@ -61,6 +64,16 @@ services:
         condition: service_healthy
     ports:
       - "5173:80"
+
+  redis:
+    image: redis/redis-stack:latest
+    container_name: harpia-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+      - "8001:8001"
+    volumes:
+      - redis_data:/data
 
   qdrant:
     image: qdrant/qdrant:latest
@@ -102,3 +115,4 @@ services:
 volumes:
   qdrant_data:
   ollama_data:
+  redis_data:

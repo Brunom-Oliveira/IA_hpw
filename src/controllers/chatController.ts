@@ -1,8 +1,10 @@
 import { Request, Response } from "express";
+import { singleton } from "tsyringe";
 import { RagService } from "../services/ragService";
 import { RagReindexQueueService } from "../services/ragReindexQueueService";
 import { STREAMING_TIMEOUT_CONFIG } from "../middleware/streamingTimeout";
 
+@singleton()
 export class ChatController {
   constructor(
     private readonly ragService: RagService,

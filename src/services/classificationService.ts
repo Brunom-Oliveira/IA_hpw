@@ -1,3 +1,4 @@
+import { singleton, inject } from "tsyringe";
 import { LlmPort } from "../types";
 
 const LABELS = ["billing", "technical", "logistics", "general"] as const;
@@ -16,8 +17,9 @@ export interface ClassificationResult {
   rationale: string;
 }
 
+@singleton()
 export class ClassificationService {
-  constructor(private readonly llm: LlmPort) {}
+  constructor(@inject("LlmPort") private readonly llm: LlmPort) {}
 
   classifyByRules(text: string): ClassificationResult {
     const normalized = text.toLowerCase();

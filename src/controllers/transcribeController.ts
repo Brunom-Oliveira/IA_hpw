@@ -1,7 +1,9 @@
 import { Request, Response } from "express";
+import { singleton } from "tsyringe";
 import { WhisperService } from "../services/whisper/whisperService";
 import { removeFileIfExists } from "../utils/audio";
 
+@singleton()
 export class TranscribeController {
   constructor(private readonly whisperService: WhisperService) {}
 

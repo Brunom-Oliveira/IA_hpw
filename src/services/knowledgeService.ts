@@ -1,5 +1,6 @@
 import axios from "axios";
 import { randomUUID } from "crypto";
+import { singleton, inject } from "tsyringe";
 import { env } from "../utils/env";
 import { EmbeddingService } from "./llm/embeddingService";
 import { LlmPort } from "../types";
@@ -26,6 +27,7 @@ type ExtractedAudioPayload = {
   knowledge_item: KnowledgeItem;
 };
 
+@singleton()
 export class KnowledgeService {
   private collectionReady = false;
   private readonly transformer = new KnowledgeTransformer();
@@ -35,7 +37,7 @@ export class KnowledgeService {
 
   constructor(
     private readonly embeddingService: EmbeddingService,
-    private readonly llm: LlmPort,
+    @inject("LlmPort") private readonly llm: LlmPort,
   ) {}
 
   async ingestManual(payload: KnowledgeItemInput): Promise<{ id: string; payload: Record<string, unknown> }> {

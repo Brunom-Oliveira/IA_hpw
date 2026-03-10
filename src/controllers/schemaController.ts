@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
+import { singleton } from "tsyringe";
 import { SchemaService } from "../services/schemaService";
 
+@singleton()
 export class SchemaController {
   constructor(private readonly schemaService: SchemaService) {}
 

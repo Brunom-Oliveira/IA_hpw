@@ -1,5 +1,7 @@
+import "reflect-metadata";
 import express from "express";
 import cors from "cors";
+import { container } from "tsyringe";
 import { createRoutes } from "./routes";
 import { createCompatibilityRoutes } from "./routes/compatibility";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
@@ -12,26 +14,28 @@ import {
   adminLimiter,
 } from "./middleware/rateLimiter";
 import { QdrantVectorDbService } from "./services/vector-db/qdrantVectorDbService";
-import { EmbeddingService } from "./services/llm/embeddingService";
-import { RagService } from "./services/ragService";
 import { LlmService } from "./services/llm/llmService";
 import { WhisperService } from "./services/whisper/whisperService";
-import { ClassificationService } from "./services/classificationService";
 import { DocumentController } from "./controllers/documentController";
 import { ClassificationController } from "./controllers/classificationController";
 import { ChatController } from "./controllers/chatController";
 import { TranscribeController } from "./controllers/transcribeController";
-import { PdfIngestService } from "./services/pdfIngestService";
 import { KnowledgeController } from "./controllers/knowledgeController";
 import { SchemaController } from "./controllers/schemaController";
 import { PublicRagController } from "./controllers/publicRagController";
-import { KnowledgeService } from "./services/knowledgeService";
-import { SchemaService } from "./services/schemaService";
 import { RagMetadataReindexService } from "./services/ragMetadataReindexService";
 import { RagReindexQueueService } from "./services/ragReindexQueueService";
 import { cacheWarmingService } from "./services/cacheWarmingService";
+import { RagService } from "./services/ragService";
 
 export const buildApp = () => {
+  // Configure tsyringe container
+  container.register("VectorDbPort", { useClass: QdrantVectorDbService });
+  container.register("LlmPort", { useClass: LlmService });
+  container.register(WhisperService, { useClass: WhisperService });
+  container.register(RagMetadataReindexService, { useClass: RagMetadataReindexService });
+  container.register(RagReindexQueueService, { useClass: RagReindexQueueService });
+
   const app = express();
 
   app.use(cors());
@@ -46,31 +50,14 @@ export const buildApp = () => {
   app.use("/api/documents/upload-audio", uploadLimiter); // Uploads (50/hora)
   app.use("/api/transcribe", transcribeLimiter); // Transcrição (20/hora)
 
-  const vectorDb = new QdrantVectorDbService();
-  const embeddingService = new EmbeddingService();
-  const llmService = new LlmService();
-  const ragService = new RagService(vectorDb, embeddingService, llmService);
-  const ragMetadataReindexService = new RagMetadataReindexService();
-  const ragReindexQueueService = new RagReindexQueueService(
-    ragMetadataReindexService,
-  );
-
-  const documentController = new DocumentController(ragService);
-  const classificationController = new ClassificationController(
-    new ClassificationService(llmService),
-  );
-  const chatController = new ChatController(ragService, ragReindexQueueService);
-  const transcribeController = new TranscribeController(new WhisperService());
-  const knowledgeController = new KnowledgeController(
-    new KnowledgeService(embeddingService, llmService),
-  );
-  const schemaController = new SchemaController(
-    new SchemaService(embeddingService),
-  );
-  const publicRagController = new PublicRagController(
-    ragService,
-    new PdfIngestService(ragService),
-  );
+  // Resolve controllers from container
+  const documentController = container.resolve(DocumentController);
+  const classificationController = container.resolve(ClassificationController);
+  const chatController = container.resolve(ChatController);
+  const transcribeController = container.resolve(TranscribeController);
+  const knowledgeController = container.resolve(KnowledgeController);
+  const schemaController = container.resolve(SchemaController);
+  const publicRagController = container.resolve(PublicRagController);
 
   app.use(
     "/api",
@@ -97,6 +84,7 @@ export const buildApp = () => {
   app.use(errorHandler);
 
   // Cache Warming [CACHE-001]: Pré-aquecimento assíncrono
+  const ragService = container.resolve(RagService);
   cacheWarmingService.warmupAsync(ragService).catch((err) => {
     console.warn("[app] Erro na inicialização de cache warming:", err?.message);
   });
