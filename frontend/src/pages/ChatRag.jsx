@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../api";
+import { useApiError } from "../hooks/useApiError";
 
 export default function ChatRag() {
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const [messages, setMessages] = useState([]);
   const [ragStats, setRagStats] = useState(null);
   const [status, setStatus] = useState({
@@ -14,6 +14,7 @@ export default function ChatRag() {
     elapsedMs: 0,
     lastHeartbeatAt: 0,
   });
+  const { error, handleError, clearError, displayMessage, hasError } = useApiError();
   const chatBoxRef = useRef(null);
   const activeRequestRef = useRef(null);
   const chatTimeoutMs = Number(import.meta.env.VITE_CHAT_TIMEOUT_MS || 420000);
@@ -59,7 +60,7 @@ export default function ChatRag() {
 
     const startedAt = Date.now();
     setLoading(true);
-    setError("");
+    clearError();
     setStatus({
       phase: "Iniciando consulta...",
       startedAt,
@@ -216,7 +217,7 @@ export default function ChatRag() {
           m.id === assistantId ? { ...m, text: "Falha ao gerar resposta." } : m
         )
       );
-      setError(err?.message || "Falha ao consultar o RAG.");
+      handleError(err);
       setStatus((prev) => ({ ...prev, phase: "Falha ao consultar o servidor." }));
     } finally {
       activeRequestRef.current = null;
@@ -237,7 +238,7 @@ export default function ChatRag() {
   function clearChat() {
     activeRequestRef.current?.abort?.();
     setMessages([]);
-    setError("");
+    clearError();
     setStatus({ phase: "", startedAt: 0, elapsedMs: 0, lastHeartbeatAt: 0 });
   }
 
@@ -343,7 +344,7 @@ export default function ChatRag() {
         </form>
       </div>
 
-      {error && <p className="error-toast">{error}</p>}
+      {hasError && <p className="error-toast">{displayMessage}</p>}
     </section>
   );
 }

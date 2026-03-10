@@ -3,6 +3,7 @@ import { singleton } from "tsyringe";
 import { RagService } from "../services/ragService";
 import { RagReindexQueueService } from "../services/ragReindexQueueService";
 import { STREAMING_TIMEOUT_CONFIG } from "../middleware/streamingTimeout";
+import { env } from "../utils/env";
 
 @singleton()
 export class ChatController {
@@ -31,7 +32,7 @@ export class ChatController {
       // Configurar timeout customizável (padrão 5 minutos)
       const customTimeout = typeof timeoutMs === "number" && timeoutMs > 0 
         ? timeoutMs 
-        : STREAMING_TIMEOUT_CONFIG["/api/chat/ask"];
+        : env.chatStreamTimeoutMs || STREAMING_TIMEOUT_CONFIG["/api/chat/ask"];
       
       let streamCompleted = false;
       let streamStartedAt = Date.now();

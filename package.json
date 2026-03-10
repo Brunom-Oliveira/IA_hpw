@@ -45,6 +45,7 @@
     "@types/multer": "^1.4.12",
     "@types/node": "^22.13.9",
     "@types/pdf-parse": "^1.1.5",
+    "@vitest/coverage-v8": "^3.2.4",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2",
     "vitest": "^3.0.8"

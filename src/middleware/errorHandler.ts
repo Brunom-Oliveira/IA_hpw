@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import { logger } from "../utils/logger";
 
 /**
  * Global Error Handler Middleware
@@ -7,21 +8,15 @@ import { Request, Response, NextFunction } from "express";
  * sem vazar stack traces ou informações sensíveis
  */
 
-interface ErrorResponse {
-  error: string;
-  status: number;
-  timestamp: string;
-  requestId?: string;
-  path?: string;
-}
-
-interface CustomError extends Error {
-  status?: number;
-  statusCode?: number;
+export class HttpError extends Error {
+  constructor(public statusCode: number = 500, message = "Erro interno do servidor") {
+    super(message);
+    this.name = "HttpError";
+  }
 }
 
 export const errorHandler = (
-  err: CustomError,
+  err: any,
   req: Request,
   res: Response,
   next: NextFunction,
@@ -29,29 +24,32 @@ export const errorHandler = (
   const status = err.status || err.statusCode || 500;
   const timestamp = new Date().toISOString();
 
-  // Construir resposta de erro
-  const errorResponse: ErrorResponse = {
-    error: getErrorMessage(err, status),
+  const requestId = (req as any).requestId;
+  const safeMessage = getErrorMessage(err, status);
+
+  logger.error({
+    message: err?.message || safeMessage,
+    requestId,
+    status,
+    path: req.path,
+    method: req.method,
+    stack: status >= 500 ? err?.stack : undefined,
+    name: err?.name,
+  });
+
+  return res.status(status).json({
+    error: safeMessage,
     status,
     timestamp,
+    requestId,
     path: req.path,
-  };
-
-  // Adicionar request ID se disponível
-  if ((req as any).requestId) {
-    errorResponse.requestId = (req as any).requestId;
-  }
-
-  // Logging baseado em severity
-  logError(err, status, errorResponse);
-
-  return res.status(status).json(errorResponse);
+  });
 };
 
 /**
  * Gera mensagem de erro amigável sem vazar informações sensíveis
  */
-function getErrorMessage(err: CustomError, status: number): string {
+function getErrorMessage(err: any, status: number): string {
   // Erros do servidor (5xx) - mensagem genérica
   if (status >= 500) {
     return "Erro interno do servidor. Por favor, tente novamente mais tarde.";
@@ -81,40 +79,6 @@ function getErrorMessage(err: CustomError, status: number): string {
 /**
  * Log estruturado de erros com diferentes níveis
  */
-function logError(
-  err: CustomError,
-  status: number,
-  errorResponse: ErrorResponse,
-): void {
-  const logLevel = status >= 500 ? "error" : status >= 400 ? "warn" : "info";
-
-  const logEntry = {
-    level: logLevel,
-    timestamp: errorResponse.timestamp,
-    status,
-    message: err.message,
-    requestId: errorResponse.requestId,
-    path: errorResponse.path,
-    ...(status >= 500 && {
-      // Apenas logar stack trace para erros 5xx (internos)
-      stack: err.stack,
-    }),
-  };
-
-  // Log estruturado (pode ser substituído por winston/pino depois)
-  switch (logLevel) {
-    case "error":
-      console.error(JSON.stringify(logEntry));
-      break;
-    case "warn":
-      console.warn(JSON.stringify(logEntry));
-      break;
-    case "info":
-    default:
-      console.log(JSON.stringify(logEntry));
-  }
-}
-
 /**
  * Middleware para capturar erros em async routes
  * Uso: router.get("/endpoint", asyncHandler(async (req, res) => { ... }))
@@ -135,9 +99,6 @@ export const notFoundHandler = (
   res: Response,
   next: NextFunction,
 ): void => {
-  const error: CustomError = new Error(
-    `Não foi possível encontrar ${req.originalUrl} neste servidor.`,
-  );
-  error.status = 404;
+  const error: any = new HttpError(404, `Não foi possível encontrar ${req.originalUrl} neste servidor.`);
   next(error);
 };

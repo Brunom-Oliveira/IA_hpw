@@ -27,9 +27,9 @@ export const requestIdMiddleware = (
     req.headers["x-correlation-id"] ||
     req.headers["traceparent"];
 
-  // Gerar novo ou usar existente
+  // Gerar novo ou usar existente (preserva valor completo)
   const requestId = incomingRequestId
-    ? String(incomingRequestId).split("-")[0].slice(0, 8) // Pegar parte relevante
+    ? String(Array.isArray(incomingRequestId) ? incomingRequestId[0] : incomingRequestId)
     : randomUUID();
 
   // Injetar no request

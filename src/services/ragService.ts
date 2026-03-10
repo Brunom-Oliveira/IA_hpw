@@ -237,7 +237,13 @@ export class RagService {
   }
 
   private buildWmsPrompt(context: string, question: string, analysis: any): string {
-    // ... (rest of the method is unchanged)
+    const mode = analysis?.mode || "general";
+    return [
+      `Modo: ${mode}`,
+      `Pergunta: ${question}`,
+      `Contexto:\n${context}`,
+      "Responda de forma objetiva usando apenas as informações acima.",
+    ].join("\n\n");
   }
 
   private buildNoContextResponse(analysis: any): RagResponse {
@@ -267,9 +273,105 @@ export class RagService {
     analysis: any,
     finalLimit: number,
   ): SearchResult[] {
-    // ... (rest of the method is unchanged)
+    const filtered = this.filterHitsByTable(hits, analysis?.tableHints || []);
+    if (analysis?.mode === "schema" && filtered.length === 0) {
+      return [];
+    }
+
+    // Ordenar por similaridade (maior distância = maior score retornado pelo stub de testes)
+    const sorted = [...filtered].sort((a, b) => b.distance - a.distance);
+    const seenSources = new Set<string>();
+    const curated: SearchResult[] = [];
+
+    for (const hit of sorted) {
+      const sourceKey = this.buildSourceKey(hit);
+      if (seenSources.has(sourceKey)) continue;
+      curated.push(hit);
+      seenSources.add(sourceKey);
+      if (curated.length >= finalLimit) break;
+    }
+
+    return curated;
   }
 
   // ... other private methods like computeHitScore, normalizeVectorScore, selectDiverseHits, etc.
-}
 
+  /**
+   * Constrói chave determinística para o cache de respostas
+   */
+  private buildCacheKey(question: string, topK?: number): string {
+    const normalized = String(question || "").trim().toLowerCase();
+    const limit = Number.isFinite(topK) ? Number(topK) : this.MAX_CONTEXT_DOCUMENTS;
+    return `rag:${normalized}::k${limit}`;
+  }
+
+  private buildCacheMetadata(hits: SearchResult[]) {
+    return {
+      sourceKeys: hits.map((hit) => this.buildSourceKey(hit)),
+      collections: [env.qdrantCollection],
+    };
+  }
+
+  /**
+   * Normaliza um identificador de fonte para deduplicação e limites por fonte
+   */
+  private buildSourceKey(hit: SearchResult): string {
+    const meta = hit.metadata || {};
+    const table = String(meta.table_name || meta.table || meta.table_suffix || "").toUpperCase();
+    const source = String(meta.source || meta.title || hit.id || "").toUpperCase();
+    return `${source}::${table}`;
+  }
+
+  /**
+   * Converte um resultado em bloco de contexto legível
+   */
+  private formatContextBlock(hit: SearchResult): string {
+    const meta = hit.metadata || {};
+    const title = (meta.title as string) || (meta.source as string) || "Fonte";
+    const category = (meta.category as string) || "Geral";
+    return `Fonte: ${title}\nCategoria: ${category}\nConteudo:\n${hit.text}`;
+  }
+
+  private mapSources(hits: SearchResult[]): Array<{ title: string; category: string }> {
+    const seen = new Set<string>();
+    const sources: Array<{ title: string; category: string }> = [];
+
+    for (const hit of hits) {
+      const key = this.buildSourceKey(hit);
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      const meta = hit.metadata || {};
+      sources.push({
+        title: (meta.title as string) || (meta.source as string) || "Fonte",
+        category: (meta.category as string) || "Geral",
+      });
+    }
+
+    return sources;
+  }
+
+  /**
+   * Mantém apenas hits relacionados às tabelas pedidas (quando houver)
+   */
+  private filterHitsByTable(hits: SearchResult[], tableHints: string[]): SearchResult[] {
+    if (!tableHints?.length) return hits;
+    const normalizedHints = tableHints.map((hint) => hint.replace(/^_/, "").toUpperCase());
+
+    return hits.filter((hit) => {
+      const meta = hit.metadata || {};
+      const tableSuffix = String(meta.table_suffix || "").toUpperCase();
+      const tableName = String(meta.table_name || meta.table || "").toUpperCase();
+      const source = String(meta.source || meta.title || hit.id || "").toUpperCase();
+      const text = String(hit.text || "").toUpperCase();
+
+      return normalizedHints.some(
+        (hint) =>
+          tableSuffix === hint ||
+          tableName.endsWith(hint) ||
+          source.includes(hint) ||
+          text.includes(hint),
+      );
+    });
+  }
+}

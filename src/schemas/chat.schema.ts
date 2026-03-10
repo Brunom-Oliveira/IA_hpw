@@ -24,6 +24,14 @@ export const ChatRequestSchema = z.object({
   model: z.string().default("default").optional(),
 });
 
+// Schema usado pelo endpoint /api/chat (mensagem única)
+export const ChatAskSchema = z.object({
+  message: z.string().min(1, "message obrigatoria").max(10000),
+  topK: z.number().int().min(1).max(10).optional(),
+  stream: z.boolean().optional().default(false),
+  timeoutMs: z.number().int().positive().optional(),
+});
+
 // Schema para query RAG
 export const RagQuerySchema = z.object({
   query: z.string().min(1, "Query não pode estar vazia").max(2000),

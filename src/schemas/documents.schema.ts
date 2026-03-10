@@ -28,6 +28,12 @@ export const SearchDocumentsSchema = z.object({
   filters: z.record(z.string(), z.any()).optional(),
 });
 
+// Schema específico para busca RAG (topK)
+export const RagSearchSchema = z.object({
+  query: z.string().min(1, "Query não pode ser vazia").max(1000),
+  topK: z.number().int().min(1).max(10).optional(),
+});
+
 // Schema para atualizar documento
 export const UpdateDocumentSchema = z.object({
   id: z.string().uuid("ID deve ser um UUID válido"),

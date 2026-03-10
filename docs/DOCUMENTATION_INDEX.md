@@ -1,7 +1,7 @@
 # 📚 ÍNDICE DE DOCUMENTAÇÃO - IA HARPIAWMS
 
-**Data**: 09 de março de 2026  
-**Status de Documentação**: ✅ **ATUALIZADO** (Todas as 5 fases)
+**Data**: 10 de março de 2026  
+**Status de Documentação**: ✅ **ATUALIZADA** (todas as 5 fases)
 
 ---
 
@@ -11,7 +11,7 @@
 |---------|-------|--------|
 | **Fases Completas** | 5/5 | ✅ |
 | **Tarefas Totais** | 19/19 | ✅ |
-| **Testes** | 173/173 | ✅ |
+| **Testes** | 158/158 | ✅ |
 | **Build** | Clean | ✅ |
 | **Documentação** | Atualizada | ✅ |
 | **Performance** | 25x improvement | ✅ |
@@ -47,7 +47,7 @@
 
 | Documento | Descrição | Status |
 |-----------|-----------|--------|
-| [TESTING.md](TESTING.md) | Documentação de testes (173 testes) | ✅ |
+| [TESTING.md](TESTING.md) | Documentação de testes (158 testes) | ✅ |
 | [RAG_QUALITY.md](RAG_QUALITY.md) | Qualidade do RAG system | ✅ |
 
 ### 📝 REFERÊNCIA TÉCNICA
@@ -126,10 +126,10 @@
 
 ### Cobertura de Testes
 ```
-Total: 173 tests
-├─ Backend: 127 tests
-├─ Frontend: 19 tests
-├─ Benchmarks: 36 tests
+Total: 158 tests
+├─ Backend: 121 tests
+├─ Frontend: 0 (backend-focused)
+├─ Benchmarks: 37 tests
 └─ Success Rate: 100% ✅
 ```
 
@@ -193,7 +193,7 @@ Documentation:     ✅ Complete
 - ✅ Status geral atualizado
 - ✅ Fases 1-5 documentadas
 - ✅ Métricas de performance incluídas
-- ✅ Testes (173) validados
+- ✅ Testes (158) validados
 - ✅ Arquitetura documentada
 - ✅ Setup/deployment descrito
 - ✅ Próximos passos identificados

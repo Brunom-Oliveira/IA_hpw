@@ -31,8 +31,6 @@ export const env = {
   qdrantCollection: process.env.QDRANT_COLLECTION ?? "knowledge_base",
   qdrantVectorSize: toNumber(process.env.QDRANT_VECTOR_SIZE, 768),
   qdrantDistance: process.env.QDRANT_DISTANCE ?? "Cosine",
-  chromaUrl: process.env.CHROMA_URL ?? "http://localhost:8000",
-  chromaCollection: process.env.CHROMA_COLLECTION ?? "harpia_docs",
   whisperBinPath: process.env.WHISPER_BIN_PATH ?? "whisper-cli",
   whisperModelPath: process.env.WHISPER_MODEL_PATH ?? "./models/ggml-base.bin",
   whisperLanguage: process.env.WHISPER_LANGUAGE ?? "pt",
@@ -40,4 +38,5 @@ export const env = {
   chunkOverlap: toNumber(process.env.CHUNK_OVERLAP, 120),
   ragMaxChunksPerSource: toNumber(process.env.RAG_MAX_CHUNKS_PER_SOURCE, 5),
   ragTopK: toNumber(process.env.RAG_TOP_K, 10),
+  chatStreamTimeoutMs: toNumber(process.env.CHAT_STREAM_TIMEOUT_MS, 600000),
 };

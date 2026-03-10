@@ -46,7 +46,7 @@ Validar que todas as implementações das Fases 1-5 estão funcionando corretame
 - CACHE-001: Cache Warming Service (25x improvement)
 - BENCH-001: Performance Benchmarks (36 tests)
 
-**Total de testes**: 173 ✅
+**Total de testes**: 158 ✅
 **Performance impact**: 25x cold start improvement (5.5s → 3.1s)
 
 ---
@@ -57,7 +57,7 @@ Validar que todas as implementações das Fases 1-5 estão funcionando corretame
 
 ```
 Test Files: 17 passed
-Tests: 173 passed (100% success rate)
+Tests: 158 passed (100% success rate)
 Duration: 4.38s average
 
 Breakdown:

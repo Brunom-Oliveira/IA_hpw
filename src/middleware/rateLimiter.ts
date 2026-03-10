@@ -1,4 +1,4 @@
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 
 /**
  * Rate Limiter Global para API
@@ -26,10 +26,7 @@ export const apiLimiter = rateLimit({
     // Não rate-limit health checks
     return req.path === "/api/health";
   },
-  keyGenerator: (req) => {
-    // Usar IP para identificar cliente
-    return req.ip || "unknown";
-  },
+  keyGenerator: ipKeyGenerator,
   handler: (req, res) => {
     res.status(429).json({
       error: "Limite de requisições excedido. Tente novamente em 15 minutos.",
@@ -53,9 +50,7 @@ export const uploadLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => {
-    return req.ip || "unknown";
-  },
+  keyGenerator: ipKeyGenerator,
   handler: (req, res) => {
     res.status(429).json({
       error: "Limite de uploads excedido. Tente novamente em 1 hora.",
@@ -79,9 +74,7 @@ export const transcribeLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => {
-    return req.ip || "unknown";
-  },
+  keyGenerator: ipKeyGenerator,
   handler: (req, res) => {
     res.status(429).json({
       error: "Limite de transcrições excedido. Tente novamente em 1 hora.",
@@ -106,8 +99,6 @@ export const adminLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => {
-    // Pode ser expandido para permitir IPs internos
-    return false;
-  },
+  keyGenerator: ipKeyGenerator,
+  skip: () => false,
 });
