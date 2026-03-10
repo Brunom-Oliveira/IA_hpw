@@ -10,7 +10,8 @@
 ```
 ✅ IMPLEMENTADOS:    13/13 ajustes documentados
 ✅ FASE 5 ADICIONOU:  3 otimizações (HNSW + Cache + Benchmarks)
-⚠️  PENDENTES:        3-4 melhorias não documentadas
+⚠️  PENDENTES:        1-2 melhorias não documentadas
+📄 Plano de fine-tune: ver docs/RAG_FINETUNE_PROJECT.md (planejado)
 🔄 EM PRODUÇÃO:       Todos os 13 ajustes + Phase 5
 ```
 

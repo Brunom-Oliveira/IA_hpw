@@ -49,6 +49,7 @@
 |-----------|-----------|--------|
 | [TESTING.md](TESTING.md) | Documentação de testes (160 testes) | ✅ |
 | [RAG_QUALITY.md](RAG_QUALITY.md) | Qualidade do RAG system | ✅ |
+| [RAG_FINETUNE_PROJECT.md](RAG_FINETUNE_PROJECT.md) | Plano de fine-tune e melhoria do RAG | ✅ |
 
 ### 📝 REFERÊNCIA TÉCNICA
 
