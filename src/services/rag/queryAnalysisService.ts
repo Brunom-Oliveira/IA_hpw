@@ -6,20 +6,15 @@ const STOP_WORDS = new Set([
 ]);
 
 const MIN_WORDS_FOR_EXPANSION = 3;
+const MIN_WORDS_FOR_SMART_EXPANSION = 5;
 
 @singleton()
 export class QueryAnalysisService {
   public analyze(question: string): QueryAnalysis {
     let expandedQuestion: string | undefined;
     const wordCount = question.trim().split(/\s+/).length;
-
-    if (wordCount <= MIN_WORDS_FOR_EXPANSION) {
-      expandedQuestion = `Qual o procedimento ou significado de: ${question}?`;
-    }
-
-    const questionToAnalyze = expandedQuestion || question;
-    const normalizedQuestion = this.normalizeText(questionToAnalyze);
     const tableHints = this.extractTableHints(question);
+    const normalizedQuestion = this.normalizeText(question);
     const terms = normalizedQuestion
       .split(" ")
       .map((token) => token.trim())
@@ -33,13 +28,26 @@ export class QueryAnalysisService {
     const hasProcedureSignal = procedureSignals.some((signal) => normalizedQuestion.includes(signal));
     const hasTroubleshootingSignal = troubleshootingSignals.some((signal) => normalizedQuestion.includes(signal));
 
+    const mode: QueryAnalysis["mode"] =
+      hasSchemaSignal ? "schema" : hasTroubleshootingSignal ? "troubleshooting" : hasProcedureSignal ? "procedure" : "general";
+
+    // Expansão inteligente para queries curtas ou pouco expressivas
+    if (wordCount <= MIN_WORDS_FOR_EXPANSION || terms.length < 2) {
+      expandedQuestion = this.expandShortQuery(question, mode, tableHints);
+    } else if (wordCount <= MIN_WORDS_FOR_SMART_EXPANSION && !hasSchemaSignal && !hasProcedureSignal && !hasTroubleshootingSignal) {
+      expandedQuestion = this.expandShortQuery(question, "general", tableHints);
+    }
+
+    const questionToAnalyze = expandedQuestion || question;
+    const normalizedExpanded = this.normalizeText(questionToAnalyze);
+
     return {
-      mode: hasSchemaSignal ? "schema" : hasTroubleshootingSignal ? "troubleshooting" : hasProcedureSignal ? "procedure" : "general",
+      mode,
       tableHints,
       terms,
       originalQuestion: question,
       expandedQuestion,
-      normalizedQuestion,
+      normalizedQuestion: normalizedExpanded,
     };
   }
 
@@ -65,5 +73,25 @@ export class QueryAnalysisService {
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/[^\w\s_]/g, "")
       .toLowerCase();
+  }
+
+  private expandShortQuery(question: string, mode: QueryAnalysis["mode"], tableHints: string[]): string {
+    const base = question.trim();
+    const parts: string[] = [base];
+
+    if (tableHints.length) {
+      parts.push(`estrutura da tabela ${tableHints[0].replace(/^_/, "")}`);
+    }
+
+    if (mode === "procedure") {
+      parts.push("passo a passo detalhado");
+    } else if (mode === "troubleshooting") {
+      parts.push("possiveis causas e solucoes");
+    } else {
+      parts.push("detalhes tecnicos e contexto no WMS");
+    }
+
+    parts.push("campos e relacionamentos relevantes");
+    return parts.join(" | ");
   }
 }

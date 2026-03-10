@@ -24,12 +24,15 @@ type RankedHit = {
 
 @singleton()
 export class RagService {
-  private readonly MAX_WINDOW = 4096;
+  private readonly MAX_WINDOW = Math.max(800, env.ragNumCtx || 4096);
   private readonly RESPONSE_RESERVE = 500;
   private readonly SYSTEM_RESERVE = 300;
   private readonly MAX_CONTEXT_DOCUMENTS = 3;
   private readonly MAX_CHUNKS_PER_SOURCE = 1;
-  private readonly AVAILABLE_CONTEXT = this.MAX_WINDOW - this.RESPONSE_RESERVE - this.SYSTEM_RESERVE;
+  private readonly AVAILABLE_CONTEXT = Math.max(
+    600,
+    this.MAX_WINDOW - this.RESPONSE_RESERVE - this.SYSTEM_RESERVE,
+  );
 
   constructor(
     @inject("VectorDbPort") private readonly vectorDb: VectorDbPort,

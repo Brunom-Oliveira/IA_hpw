@@ -39,14 +39,21 @@ describe("QueryAnalysisService", () => {
   it("expande uma query curta para melhorar a busca", () => {
     const analysis = service.analyze("ajuda");
     expect(analysis.originalQuestion).toBe("ajuda");
-    expect(analysis.expandedQuestion).toBe("Qual o procedimento ou significado de: ajuda?");
-    expect(analysis.normalizedQuestion).toBe("qual o procedimento ou significado de ajuda");
+    expect(analysis.expandedQuestion).toBeDefined();
+    expect(analysis.expandedQuestion).toContain("detalhes tecnicos");
+    expect(analysis.normalizedQuestion).toContain("ajuda");
   });
 
-  it("nao expande uma query com mais de 3 palavras", () => {
+  it("aplica expansao leve em queries curtas mas sem sinais claros", () => {
+    const query = "recepcao";
+    const analysis = service.analyze(query);
+    expect(analysis.expandedQuestion).toBeDefined();
+    expect(analysis.expandedQuestion).toContain("passo a passo detalhado");
+  });
+
+  it("mantem query longa sem expansao desnecessaria", () => {
     const query = "como configuro meu computador novo";
     const analysis = service.analyze(query);
-    expect(analysis.originalQuestion).toBe(query);
     expect(analysis.expandedQuestion).toBeUndefined();
     expect(analysis.normalizedQuestion).toBe("como configuro meu computador novo");
   });

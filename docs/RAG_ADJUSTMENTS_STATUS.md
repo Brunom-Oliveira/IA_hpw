@@ -165,37 +165,7 @@ Resultado: Validação de 10x + 25x improvements
 
 ## ⚠️ AJUSTES PENDENTES (NÃO DOCUMENTADOS)
 
-### 1. 🔴 **Advanced Query Expansion**
-```
-Problema: Queries curtas não geram bons embeddings
-Solução Proposta: Query expansion antes de search
-Exemplo: "qual tabela?" → "qual é a tabela de usuários"
-Status: ❌ NÃO IMPLEMENTADO
-Impacto: +5-10% relevância em queries curtas
-Esforço: 2 horas
-```
-
-### 2. 🔴 **Semantic Cache (Redis)**
-```
-Problema: Cache atual é apenas hash exato (todos/nada)
-Solução Proposta: Cache semântico com similaridade threshold
-Exemplo: "qual tabela?" vs "qual é a tabela?" → MATCH
-Status: ❌ NÃO IMPLEMENTADO
-Impacto: +30% hit rate (vs 95% atual)
-Esforço: 4 horas
-Pré-requisito: Redis
-```
-
-### 3. 🔴 **Adaptive Context Window**
-```
-Problema: Context tokens variáveis por LLM
-Solução Proposta: Detectar limites, adaptar chunks
-Status: ❌ NÃO IMPLEMENTADO
-Impacto: +20% contexto utilizável sem overflow
-Esforço: 2 horas
-```
-
-### 4. 🔴 **Query-Document Relevance Feedback**
+### 1. 🔴 **Query-Document Relevance Feedback**
 ```
 Problema: Sem feedback do usuário sobre qualidade
 Solução Proposta: Usuário marca "relevante/irrelevante"
@@ -226,10 +196,7 @@ Esforço: 6 horas (backend + frontend + feedback loop)
 ### Faltando Ainda
 
 ```
-❌ Query expansion       (short queries)
-❌ Semantic cache        (similarity > 0.95)
 ❌ User feedback loop    (relevance marking)
-❌ Adaptive context      (dynamic chunk sizing)
 ❌ Multi-language support(apenas PT)
 ❌ A/B testing          (no reranking rules)
 ❌ Real-time monitoring (Prometheus metrics for RAG)
