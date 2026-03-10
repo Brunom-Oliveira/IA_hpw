@@ -4,6 +4,7 @@ import { RagService } from "../services/ragService";
 import { RagReindexQueueService } from "../services/ragReindexQueueService";
 import { STREAMING_TIMEOUT_CONFIG } from "../middleware/streamingTimeout";
 import { env } from "../utils/env";
+import { logger } from "../utils/logger";
 
 @singleton()
 export class ChatController {
@@ -132,7 +133,17 @@ export class ChatController {
       const result = await this.ragService.ask(message, topK);
       res.json(result);
     } catch (error: any) {
-      res.status(500).json({ error: error.message || "Erro no processamento do chat" });
+      logger.error({
+        message: "Erro ao processar chat",
+        error: error?.message,
+        stack: error?.stack,
+        query: message,
+      });
+
+      res.status(502).json({
+        error: error?.message || "Erro no processamento do chat",
+        fallback: "Sem resposta do modelo.",
+      });
     }
   };
 
