@@ -1,7 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 import axios from "axios";
-import { singleton } from "tsyringe";
+import { singleton, inject } from "tsyringe";
 import { env } from "../utils/env";
 import { EmbeddingService } from "./llm/embeddingService";
 import { SchemaTransformer } from "./schemaTransformer";
@@ -23,7 +23,7 @@ export class SchemaService {
   private readonly indexService = new QdrantIndexService();
   private collectionReady = false;
 
-  constructor(private readonly embeddingService: EmbeddingService) {}
+  constructor(@inject(EmbeddingService) private readonly embeddingService: EmbeddingService) {}
 
   async ingestFromSqlFile(): Promise<{ file: string; indexed_tables: string[]; total: number }> {
     await this.ensureSchemaDocumentsCollection();

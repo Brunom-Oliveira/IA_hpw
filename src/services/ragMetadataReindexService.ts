@@ -1,4 +1,5 @@
 import axios, { AxiosResponse } from "axios";
+import { singleton } from "tsyringe";
 import { env } from "../utils/env";
 import { buildRagMetadata, extractPrimaryTableName } from "../utils/ragMetadata";
 import { ragQueryCache } from "./ragQueryCache";
@@ -30,6 +31,7 @@ type QdrantCollectionsResponse = {
   };
 };
 
+@singleton()
 export class RagMetadataReindexService {
   private readonly batchSize = Number(process.env.RAG_REINDEX_BATCH_SIZE || 100);
 

@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { promises as fs } from "node:fs";
-import { singleton } from "tsyringe";
+import { singleton, inject } from "tsyringe";
 import { RagService } from "../services/ragService";
 import { buildRagMetadata } from "../utils/ragMetadata";
 import { validateFiles } from "../utils/fileValidator";
@@ -12,7 +12,7 @@ const MANUAL_CHUNK_OVERLAP = Number(
 
 @singleton()
 export class DocumentController {
-  constructor(private readonly ragService: RagService) {}
+  constructor(@inject(RagService) private readonly ragService: RagService) {}
 
   insertDocuments = async (req: Request, res: Response): Promise<void> => {
     const documents = req.body?.documents as Array<{

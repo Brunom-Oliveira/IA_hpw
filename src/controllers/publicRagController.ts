@@ -1,13 +1,13 @@
 import { Request, Response } from "express";
-import { singleton } from "tsyringe";
+import { singleton, inject } from "tsyringe";
 import { PdfIngestService } from "../services/pdfIngestService";
 import { RagService } from "../services/ragService";
 
 @singleton()
 export class PublicRagController {
   constructor(
-    private readonly ragService: RagService,
-    private readonly pdfIngestService: PdfIngestService,
+    @inject(RagService) private readonly ragService: RagService,
+    @inject(PdfIngestService) private readonly pdfIngestService: PdfIngestService,
   ) {}
 
   ask = async (req: Request, res: Response): Promise<void> => {

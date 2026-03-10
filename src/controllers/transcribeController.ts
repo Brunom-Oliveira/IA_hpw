@@ -1,11 +1,11 @@
 import { Request, Response } from "express";
-import { singleton } from "tsyringe";
+import { singleton, inject } from "tsyringe";
 import { WhisperService } from "../services/whisper/whisperService";
 import { removeFileIfExists } from "../utils/audio";
 
 @singleton()
 export class TranscribeController {
-  constructor(private readonly whisperService: WhisperService) {}
+  constructor(@inject(WhisperService) private readonly whisperService: WhisperService) {}
 
   transcribe = async (req: Request, res: Response): Promise<void> => {
     const filePath = req.file?.path;

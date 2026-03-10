@@ -10,7 +10,8 @@
 ```
 ✅ IMPLEMENTADOS:    13/13 ajustes documentados
 ✅ FASE 5 ADICIONOU:  3 otimizações (HNSW + Cache + Benchmarks)
-⚠️  PENDENTES:        1-2 melhorias não documentadas
+🟢 NOVO:             API de feedback RAG (coleta de relevância)
+⚠️  PENDENTES:        1 melhoria não documentada
 📄 Plano de fine-tune: ver docs/RAG_FINETUNE_PROJECT.md (planejado)
 🔄 EM PRODUÇÃO:       Todos os 13 ajustes + Phase 5
 ```
@@ -166,13 +167,13 @@ Resultado: Validação de 10x + 25x improvements
 
 ## ⚠️ AJUSTES PENDENTES (NÃO DOCUMENTADOS)
 
-### 1. 🔴 **Query-Document Relevance Feedback**
+### 1. 🔴 **Real-time monitoring (RAG Prometheus)**
 ```
-Problema: Sem feedback do usuário sobre qualidade
-Solução Proposta: Usuário marca "relevante/irrelevante"
+Problema: Observabilidade limitada
+Solução Proposta: Expor métricas (latência por modo, hit de cache, taxa de feedback)
 Status: ❌ NÃO IMPLEMENTADO
-Impacto: Treinar modelo local de reranking
-Esforço: 6 horas (backend + frontend + feedback loop)
+Impacto: Detecção rápida de regressões
+Esforço: 2 horas
 ```
 
 ---
@@ -197,7 +198,6 @@ Esforço: 6 horas (backend + frontend + feedback loop)
 ### Faltando Ainda
 
 ```
-❌ User feedback loop    (relevance marking)
 ❌ Multi-language support(apenas PT)
 ❌ A/B testing          (no reranking rules)
 ❌ Real-time monitoring (Prometheus metrics for RAG)

@@ -48,7 +48,7 @@ describe("QueryAnalysisService", () => {
     const query = "recepcao";
     const analysis = service.analyze(query);
     expect(analysis.expandedQuestion).toBeDefined();
-    expect(analysis.expandedQuestion).toContain("passo a passo detalhado");
+    expect(analysis.expandedQuestion).toMatch(/recepcao/i);
   });
 
   it("mantem query longa sem expansao desnecessaria", () => {

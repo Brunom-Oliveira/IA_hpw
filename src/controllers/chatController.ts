@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { singleton } from "tsyringe";
+import { singleton, inject } from "tsyringe";
 import { RagService } from "../services/ragService";
 import { RagReindexQueueService } from "../services/ragReindexQueueService";
 import { STREAMING_TIMEOUT_CONFIG } from "../middleware/streamingTimeout";
@@ -8,8 +8,8 @@ import { env } from "../utils/env";
 @singleton()
 export class ChatController {
   constructor(
-    private readonly ragService: RagService,
-    private readonly ragReindexQueueService: RagReindexQueueService,
+    @inject(RagService) private readonly ragService: RagService,
+    @inject(RagReindexQueueService) private readonly ragReindexQueueService: RagReindexQueueService,
   ) {}
 
   ask = async (req: Request, res: Response): Promise<void> => {

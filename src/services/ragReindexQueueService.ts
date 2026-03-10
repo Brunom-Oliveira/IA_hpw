@@ -1,12 +1,14 @@
 import { randomUUID } from "crypto";
+import { inject, singleton } from "tsyringe";
 import { RagMetadataReindexService } from "./ragMetadataReindexService";
 import { RagReindexJob, ragOpsStatusService } from "./ragOpsStatusService";
 
+@singleton()
 export class RagReindexQueueService {
   private processing = false;
   private readonly queue: string[] = [];
 
-  constructor(private readonly reindexService: RagMetadataReindexService) {}
+  constructor(@inject(RagMetadataReindexService) private readonly reindexService: RagMetadataReindexService) {}
 
   enqueue(): RagReindexJob {
     const job: RagReindexJob = {

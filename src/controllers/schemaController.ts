@@ -1,10 +1,10 @@
 import { Request, Response } from "express";
-import { singleton } from "tsyringe";
+import { singleton, inject } from "tsyringe";
 import { SchemaService } from "../services/schemaService";
 
 @singleton()
 export class SchemaController {
-  constructor(private readonly schemaService: SchemaService) {}
+  constructor(@inject(SchemaService) private readonly schemaService: SchemaService) {}
 
   ingest = async (_req: Request, res: Response): Promise<void> => {
     try {

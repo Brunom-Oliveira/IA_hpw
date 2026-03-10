@@ -1,10 +1,10 @@
 import { Request, Response } from "express";
-import { singleton } from "tsyringe";
+import { singleton, inject } from "tsyringe";
 import { KnowledgeService } from "../services/knowledgeService";
 
 @singleton()
 export class KnowledgeController {
-  constructor(private readonly knowledgeService: KnowledgeService) {}
+  constructor(@inject(KnowledgeService) private readonly knowledgeService: KnowledgeService) {}
 
   manual = async (req: Request, res: Response): Promise<void> => {
     try {

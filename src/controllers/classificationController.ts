@@ -1,10 +1,10 @@
 import { Request, Response } from "express";
-import { singleton } from "tsyringe";
+import { singleton, inject } from "tsyringe";
 import { ClassificationService } from "../services/classificationService";
 
 @singleton()
 export class ClassificationController {
-  constructor(private readonly service: ClassificationService) {}
+  constructor(@inject(ClassificationService) private readonly service: ClassificationService) {}
 
   classify = async (req: Request, res: Response): Promise<void> => {
     const text = req.body?.text as string;

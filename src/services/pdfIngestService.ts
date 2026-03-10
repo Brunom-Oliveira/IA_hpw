@@ -1,5 +1,5 @@
 import pdfParse from "pdf-parse";
-import { singleton } from "tsyringe";
+import { singleton, inject } from "tsyringe";
 import { RagService } from "./ragService";
 import { ragQueryCache } from "./ragQueryCache";
 import { env } from "../utils/env";
@@ -7,7 +7,7 @@ import { buildRagMetadata } from "../utils/ragMetadata";
 
 @singleton()
 export class PdfIngestService {
-  constructor(private readonly ragService: RagService) {}
+  constructor(@inject(RagService) private readonly ragService: RagService) {}
 
   async ingestPdf(file: Express.Multer.File): Promise<{ source: string; chunks: number; inserted: number; ids: string[] }> {
     if (!file?.buffer) {
