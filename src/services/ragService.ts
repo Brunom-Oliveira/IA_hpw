@@ -182,8 +182,23 @@ export class RagService {
     };
 
     await this.llm.generateStream(prompt, streamingResponse, { signal: options?.signal });
+
+    // Se o modelo nÃ£o retornou texto, responder com fallback seguro
+    const assembledAnswer = assembled.trim();
+    const safeAnswer =
+      assembledAnswer || this.buildNoContextAnswer(analysis) || "Nao encontrei informacoes suficientes na base atual para responder com seguranca.";
+
+    // Emitir chunk final caso o modelo tenha ficado em branco (garante texto para o frontend)
+    if (!assembledAnswer) {
+      onToken({
+        content: safeAnswer,
+        done: true,
+        usage: finalUsage,
+      });
+    }
+
     const finalResponse = {
-      answer: assembled.trim(),
+      answer: safeAnswer,
       context: contextData,
       matches: curatedHits.length,
       usage: finalUsage,
@@ -226,7 +241,8 @@ export class RagService {
   private async retrieveCuratedHits(analysis: QueryAnalysis, queryEmbedding: number[], requestedTopK?: number): Promise<SearchResult[]> {
     const candidateLimit = this.resolveCandidateLimit(analysis.originalQuestion, requestedTopK, analysis);
     const finalLimit = this.resolveFinalContextLimit(requestedTopK, analysis);
-    const hits = await this.vectorDb.search(queryEmbedding, candidateLimit);
+    const collection = this.resolveCollectionForAnalysis(analysis);
+    const hits = await this.vectorDb.search(queryEmbedding, candidateLimit, collection);
     return this.curateHitsByQuestion(hits, analysis, finalLimit);
   }
 
@@ -242,6 +258,13 @@ export class RagService {
     const desired = requested && requested > 0 ? Math.min(this.MAX_CONTEXT_DOCUMENTS, requested) : this.MAX_CONTEXT_DOCUMENTS;
     if (analysis?.mode === "schema") return Math.min(2, desired);
     return desired;
+  }
+
+  private resolveCollectionForAnalysis(analysis: QueryAnalysis): string | undefined {
+    if (analysis?.mode === "schema") {
+      return env.qdrantSchemaCollection || env.qdrantCollection;
+    }
+    return env.qdrantCollection;
   }
 
   private buildContext(_question: string, hits: SearchResult[], analysis: any): string {

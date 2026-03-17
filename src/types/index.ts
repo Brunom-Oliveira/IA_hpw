@@ -22,7 +22,7 @@ export interface QueryAnalysis {
 
 export interface VectorDbPort {
   upsert(documents: DocumentChunk[], embeddings: number[][]): Promise<void>;
-  search(queryEmbedding: number[], topK: number): Promise<SearchResult[]>;
+  search(queryEmbedding: number[], topK: number, collection?: string): Promise<SearchResult[]>;
 }
 
 export interface LlmUsage {

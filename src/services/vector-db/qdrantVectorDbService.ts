@@ -26,29 +26,30 @@ export class QdrantVectorDbService implements VectorDbPort {
     return env.qdrantUrl;
   }
 
-  private async ensureCollection(): Promise<void> {
-    if (this.collectionReady) return;
+  private async ensureCollection(collectionName?: string): Promise<void> {
+    const target = collectionName || this.collectionName;
+    if (this.collectionReady && target === this.collectionName) return;
 
     try {
-      await axios.get(`${this.baseUrl}/collections/${this.collectionName}`);
-      this.collectionReady = true;
+      await axios.get(`${this.baseUrl}/collections/${target}`);
+      if (target === this.collectionName) this.collectionReady = true;
       // Assegurar índices mesmo se collection já existe
-      await this.indexService.ensureIndices(this.collectionName);
+      await this.indexService.ensureIndices(target);
       return;
     } catch (error: any) {
       if (error?.response?.status !== 404) throw error;
     }
 
-    await axios.put(`${this.baseUrl}/collections/${this.collectionName}`, {
+    await axios.put(`${this.baseUrl}/collections/${target}`, {
       vectors: {
         size: env.qdrantVectorSize,
         distance: env.qdrantDistance,
       },
     });
 
-    this.collectionReady = true;
+    if (target === this.collectionName) this.collectionReady = true;
     // Criar índices após criar collection
-    await this.indexService.ensureIndices(this.collectionName);
+    await this.indexService.ensureIndices(target);
   }
 
   async upsert(documents: DocumentChunk[], embeddings: number[][]): Promise<void> {
@@ -67,11 +68,12 @@ export class QdrantVectorDbService implements VectorDbPort {
     await axios.put(`${this.baseUrl}/collections/${this.collectionName}/points`, { points });
   }
 
-  async search(queryEmbedding: number[], topK: number): Promise<SearchResult[]> {
-    await this.ensureCollection();
+  async search(queryEmbedding: number[], topK: number, collection?: string): Promise<SearchResult[]> {
+    const targetCollection = collection || this.collectionName;
+    await this.ensureCollection(targetCollection);
 
     const payload = { vector: queryEmbedding, limit: topK, with_payload: true };
-    const response = await this.searchWithFallback(payload);
+    const response = await this.searchWithFallback(targetCollection, payload);
     const points = this.normalizePoints(response?.data?.result);
 
     return points.map((point) => {
@@ -86,19 +88,22 @@ export class QdrantVectorDbService implements VectorDbPort {
     });
   }
 
-  private async searchWithFallback(payload: {
-    vector: number[];
-    limit: number;
-    with_payload: boolean;
-  }) {
+  private async searchWithFallback(
+    collection: string,
+    payload: {
+      vector: number[];
+      limit: number;
+      with_payload: boolean;
+    },
+  ) {
     try {
       return await axios.post(
-        `${this.baseUrl}/collections/${this.collectionName}/points/query`,
+        `${this.baseUrl}/collections/${collection}/points/query`,
         { query: payload.vector, limit: payload.limit, with_payload: payload.with_payload },
       );
     } catch (error: any) {
       if (error?.response?.status !== 404) throw error;
-      return axios.post(`${this.baseUrl}/collections/${this.collectionName}/points/search`, payload);
+      return axios.post(`${this.baseUrl}/collections/${collection}/points/search`, payload);
     }
   }
 

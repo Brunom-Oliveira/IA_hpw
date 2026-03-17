@@ -6,7 +6,7 @@ import { SchemaDocument } from "./ddlTransformer";
 import { buildRagMetadata, extractTableSuffix } from "../utils/ragMetadata";
 import { QdrantIndexService } from "../services/vector-db/qdrantIndexService";
 
-const COLLECTION_NAME = "schema_knowledge";
+const COLLECTION_NAME = env.qdrantSchemaCollection || "schema_knowledge";
 
 export function estimateTokens(text: string): number {
   return Math.ceil(String(text || "").length / 4);

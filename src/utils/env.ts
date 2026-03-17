@@ -29,6 +29,7 @@ export const env = {
   ragAdminToken: process.env.RAG_ADMIN_TOKEN ?? "",
   qdrantUrl: process.env.QDRANT_URL ?? "http://qdrant:6333",
   qdrantCollection: process.env.QDRANT_COLLECTION ?? "knowledge_base",
+  qdrantSchemaCollection: process.env.QDRANT_SCHEMA_COLLECTION ?? process.env.QDRANT_COLLECTION ?? "knowledge_base",
   qdrantVectorSize: toNumber(process.env.QDRANT_VECTOR_SIZE, 768),
   qdrantDistance: process.env.QDRANT_DISTANCE ?? "Cosine",
   qdrantSkipPayloadIndex: process.env.QDRANT_SKIP_PAYLOAD_INDEX === "true",

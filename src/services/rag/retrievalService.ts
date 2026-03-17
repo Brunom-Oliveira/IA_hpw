@@ -22,7 +22,8 @@ export class RetrievalService {
     const candidateLimit = this.resolveCandidateLimit(question, requestedTopK, analysis);
     const finalLimit = this.resolveFinalContextLimit(requestedTopK, analysis);
     const queryEmbedding = await this.embeddingService.embed(question);
-    const hits = await this.vectorDb.search(queryEmbedding, candidateLimit);
+    const collection = this.resolveCollectionForAnalysis(analysis);
+    const hits = await this.vectorDb.search(queryEmbedding, candidateLimit, collection);
     return this.curateHitsByQuestion(hits, analysis, finalLimit);
   }
 
@@ -82,6 +83,13 @@ export class RetrievalService {
     const desired = requested && requested > 0 ? Math.min(env.ragTopK, requested) : env.ragTopK;
     if (analysis?.mode === "schema") return Math.min(2, desired);
     return desired;
+  }
+
+  private resolveCollectionForAnalysis(analysis: QueryAnalysis): string | undefined {
+    if (analysis?.mode === "schema") {
+      return env.qdrantSchemaCollection || env.qdrantCollection;
+    }
+    return env.qdrantCollection;
   }
 
   private filterStrictTableHits(hits: SearchResult[], tableHints: string[]): SearchResult[] {
