@@ -111,7 +111,8 @@ export default function ChatRag() {
         body: JSON.stringify({
           message: trimmed,
           topK: Number(topK),
-          stream: true,
+          // Desativamos streaming para evitar quedas de conexão/timeouts no frontend.
+          stream: false,
         }),
         signal: controller.signal,
       });
