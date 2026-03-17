@@ -34,6 +34,7 @@ export class KnowledgeService {
   private readonly validator = new KnowledgeValidator();
   private readonly schemaParser = new SchemaParser();
   private readonly collectionName = env.qdrantCollection;
+  private readonly schemaCollectionName = env.qdrantSchemaCollection || env.qdrantCollection;
 
   constructor(
     private readonly embeddingService: EmbeddingService,
@@ -171,12 +172,12 @@ export class KnowledgeService {
     };
   }
 
-  private async ensureCollection(): Promise<void> {
-    if (this.collectionReady) return;
+  private async ensureCollection(collectionName = this.collectionName): Promise<void> {
+    if (this.collectionReady && collectionName === this.collectionName) return;
 
     try {
-      await axios.get(`${env.qdrantUrl}/collections/${env.qdrantCollection}`);
-      this.collectionReady = true;
+      await axios.get(`${env.qdrantUrl}/collections/${collectionName}`);
+      if (collectionName === this.collectionName) this.collectionReady = true;
       return;
     } catch (error: any) {
       if (error?.response?.status !== 404) {
@@ -184,17 +185,20 @@ export class KnowledgeService {
       }
     }
 
-    await axios.put(`${env.qdrantUrl}/collections/${env.qdrantCollection}`, {
+    await axios.put(`${env.qdrantUrl}/collections/${collectionName}`, {
       vectors: {
         size: env.qdrantVectorSize,
         distance: env.qdrantDistance,
       },
     });
-    this.collectionReady = true;
+    if (collectionName === this.collectionName) this.collectionReady = true;
   }
 
-  private async indexOne(structuredData: KnowledgeItem): Promise<{ id: string; payload: Record<string, unknown> }> {
-    await this.ensureCollection();
+  private async indexOne(
+    structuredData: KnowledgeItem,
+    targetCollection = this.collectionName,
+  ): Promise<{ id: string; payload: Record<string, unknown> }> {
+    await this.ensureCollection(targetCollection);
     const text = this.transformer.buildStandardText(structuredData);
     const vector = await this.embedText(text);
     const id = randomUUID();
@@ -226,8 +230,8 @@ export class KnowledgeService {
     };
     const sourceKey = String(payload.source || payload.title || "");
 
-    await axios.put(`${env.qdrantUrl}/collections/${env.qdrantCollection}/points`, { points: [point] });
-    ragQueryCache.invalidateByCollections([this.collectionName]);
+    await axios.put(`${env.qdrantUrl}/collections/${targetCollection}/points`, { points: [point] });
+    ragQueryCache.invalidateByCollections([targetCollection]);
     ragQueryCache.invalidateBySourceKeys([sourceKey]);
     return { id, payload: point.payload };
   }
@@ -240,12 +244,10 @@ export class KnowledgeService {
   }
 
   private parseSqlWithFallback(sqlText: string): LegacyParsedSchemaTable[] {
-    try {
-      return this.schemaParser.parseSql(sqlText);
-    } catch {
-      const parsed = parseDDL(sqlText);
-      const tables = Array.isArray(parsed.tables) ? parsed.tables : [];
-      return tables.map((table) => ({
+    const parsed = parseDDL(sqlText);
+    const tables = Array.isArray(parsed.tables) ? parsed.tables : [];
+    return tables
+      .map((table) => ({
         table: String(table.table_name || ""),
         columns: Array.isArray(table.columns) ? table.columns.map((column) => ({ name: column.name, type: column.type })) : [],
         primaryKey: Array.isArray(table.primary_key) ? table.primary_key : [],
@@ -258,8 +260,8 @@ export class KnowledgeService {
               referencedTable: `${fk.references?.schema || ""}.${fk.references?.table_name || ""}`.replace(/^\./, ""),
             }))
           : [],
-      })).filter((table) => table.table);
-    }
+      }))
+      .filter((table) => table.table);
   }
 
   private async structureByLlm(
