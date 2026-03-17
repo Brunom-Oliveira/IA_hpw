@@ -99,7 +99,16 @@ export class KnowledgeController {
     if (buffer.length >= 2) {
       const bom = buffer.slice(0, 2);
       if (bom[0] === 0xff && bom[1] === 0xfe) return buffer.slice(2).toString("utf16le");
-      if (bom[0] === 0xfe && bom[1] === 0xff) return buffer.slice(2).toString("utf16be");
+      if (bom[0] === 0xfe && bom[1] === 0xff) {
+        // UTF-16 BE -> converter para LE antes de decodificar
+        const be = buffer.slice(2);
+        const le = Buffer.alloc(be.length);
+        for (let i = 0; i < be.length; i += 2) {
+          le[i] = be[i + 1];
+          le[i + 1] = be[i];
+        }
+        return le.toString("utf16le");
+      }
     }
 
     // Heurística: muitos bytes zero => provavelmente UTF-16 LE
