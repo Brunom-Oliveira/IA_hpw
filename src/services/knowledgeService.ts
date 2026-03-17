@@ -119,7 +119,7 @@ export class KnowledgeService {
     for (const tableDef of tableDefs) {
       if (!tableDef?.table) continue;
       const doc = this.transformer.tableToKnowledgeDocument(tableDef, sourceName);
-      const result = await this.indexOne(doc);
+      const result = await this.indexOne(doc, this.schemaCollectionName);
       indexed.push({
         table: tableDef.table,
         id: String(result.id),
