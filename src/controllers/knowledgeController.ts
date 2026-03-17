@@ -131,12 +131,31 @@ export class KnowledgeController {
     }
   };
 
+  schemaItems = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const category = typeof req.query.category === "string" ? req.query.category : "";
+      const items = await this.knowledgeService.listSchemaItems(category);
+      res.json({ items });
+    } catch (error: any) {
+      res.status(500).json({ error: error?.message || "Falha ao listar schemas" });
+    }
+  };
+
   stats = async (_req: Request, res: Response): Promise<void> => {
     try {
       const stats = await this.knowledgeService.getStats();
       res.json(stats);
     } catch (error: any) {
       res.status(500).json({ error: error?.message || "Falha ao gerar estatisticas" });
+    }
+  };
+
+  schemaStats = async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const stats = await this.knowledgeService.getSchemaStats();
+      res.json(stats);
+    } catch (error: any) {
+      res.status(500).json({ error: error?.message || "Falha ao gerar estatisticas de schema" });
     }
   };
 }

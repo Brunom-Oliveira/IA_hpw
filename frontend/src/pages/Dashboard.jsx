@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "../api";
 
-const categories = ["", "documentation", "schema", "audio_case", "ticket", "business_rule"];
+const categories = ["", "schema", "documentation", "audio_case", "ticket", "business_rule"];
 
 export default function Dashboard() {
   const [items, setItems] = useState([]);
@@ -38,8 +38,8 @@ export default function Dashboard() {
     setError("");
     try {
       const [itemsRes, statsRes, ragStatsRes] = await Promise.all([
-        api.get("/knowledge/items"),
-        api.get("/knowledge/stats"),
+        api.get("/knowledge/schema-items"),
+        api.get("/knowledge/schema-stats"),
         api.get("/api/rag/stats"),
       ]);
       setItems(itemsRes.data.items || []);

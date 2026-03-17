@@ -17,7 +17,9 @@ export const createCompatibilityRoutes = (deps: {
   router.post("/knowledge/auto-audio", deps.knowledgeController.autoAudio);
   router.post("/knowledge/upload-sql", memoryUpload.single("file"), deps.knowledgeController.uploadSql);
   router.get("/knowledge/items", deps.knowledgeController.items);
+  router.get("/knowledge/schema-items", deps.knowledgeController.schemaItems);
   router.get("/knowledge/stats", deps.knowledgeController.stats);
+  router.get("/knowledge/schema-stats", deps.knowledgeController.schemaStats);
 
   router.post("/schema/ingest", deps.schemaController.ingest);
   router.post("/schema/upload", deps.schemaController.upload);

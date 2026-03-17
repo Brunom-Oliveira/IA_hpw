@@ -139,9 +139,9 @@ export class KnowledgeService {
     };
   }
 
-  async listItems(category = ""): Promise<Record<string, unknown>[]> {
-    await this.ensureCollection();
-    const response = await axios.post(`${env.qdrantUrl}/collections/${env.qdrantCollection}/points/scroll`, {
+  async listItems(category = "", collection = this.collectionName): Promise<Record<string, unknown>[]> {
+    await this.ensureCollection(collection);
+    const response = await axios.post(`${env.qdrantUrl}/collections/${collection}/points/scroll`, {
       with_payload: true,
       with_vector: false,
       limit: 300,
@@ -157,8 +157,8 @@ export class KnowledgeService {
     return items.filter((item) => String((item as Record<string, unknown>).category || "") === category);
   }
 
-  async getStats(): Promise<{ total: number; by_category: Record<string, number> }> {
-    const items = await this.listItems();
+  async getStats(collection = this.collectionName): Promise<{ total: number; by_category: Record<string, number> }> {
+    const items = await this.listItems("", collection);
     const byCategory: Record<string, number> = {};
 
     for (const item of items) {
@@ -170,6 +170,14 @@ export class KnowledgeService {
       total: items.length,
       by_category: byCategory,
     };
+  }
+
+  async listSchemaItems(category = ""): Promise<Record<string, unknown>[]> {
+    return this.listItems(category, this.schemaCollectionName);
+  }
+
+  async getSchemaStats(): Promise<{ total: number; by_category: Record<string, number> }> {
+    return this.getStats(this.schemaCollectionName);
   }
 
   private async ensureCollection(collectionName = this.collectionName): Promise<void> {
