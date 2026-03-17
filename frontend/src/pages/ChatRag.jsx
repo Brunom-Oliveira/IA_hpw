@@ -123,6 +123,27 @@ export default function ChatRag() {
         throw new Error(rawError || `HTTP ${response.status}`);
       }
 
+      // Quando stream=false, recebemos um único JSON, então tratamos direto.
+      if (!response.headers.get("content-type")?.includes("text/event-stream")) {
+        const data = await response.json();
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId
+              ? {
+                  ...m,
+                  text: data?.answer || "Sem resposta do modelo.",
+                  context: data?.context || "",
+                  sources: Array.isArray(data?.sources) ? data.sources : [],
+                  usage: data?.usage || null,
+                }
+              : m
+          )
+        );
+        setStatus((prev) => ({ ...prev, phase: "Resposta pronta." }));
+        loadRagStats();
+        return;
+      }
+
       const reader = response.body.getReader();
       const decoder = new TextDecoder("utf-8");
       let buffer = "";
