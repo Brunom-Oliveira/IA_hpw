@@ -70,7 +70,7 @@ export class KnowledgeController {
         return;
       }
 
-      const sqlText = req.file.buffer.toString("utf-8");
+      const sqlText = this.decodeSqlBuffer(req.file.buffer);
       const result = await this.knowledgeService.ingestSqlContent(sqlText, req.file.originalname);
       res.status(201).json({
         message: "Schema SQL processado e indexado",
@@ -82,6 +82,35 @@ export class KnowledgeController {
       });
     }
   };
+
+  /**
+   * Decodifica buffer de arquivo SQL tratando BOM/UTF-16 (comum em dumps do SQL Server).
+   * Fallback para UTF-8 se nada especial for detectado.
+   */
+  private decodeSqlBuffer(buffer: Buffer): string {
+    if (!buffer || buffer.length === 0) return "";
+
+    // BOM UTF-8
+    if (buffer.length >= 3 && buffer[0] === 0xef && buffer[1] === 0xbb && buffer[2] === 0xbf) {
+      return buffer.slice(3).toString("utf8");
+    }
+
+    // BOM UTF-16 LE / BE
+    if (buffer.length >= 2) {
+      const bom = buffer.slice(0, 2);
+      if (bom[0] === 0xff && bom[1] === 0xfe) return buffer.slice(2).toString("utf16le");
+      if (bom[0] === 0xfe && bom[1] === 0xff) return buffer.slice(2).toString("utf16be");
+    }
+
+    // Heurística: muitos bytes zero => provavelmente UTF-16 LE
+    const sample = buffer.slice(0, Math.min(buffer.length, 200));
+    const zeroBytes = sample.filter((b) => b === 0x00).length;
+    if (zeroBytes > sample.length * 0.2) {
+      return buffer.toString("utf16le");
+    }
+
+    return buffer.toString("utf8");
+  }
 
   items = async (req: Request, res: Response): Promise<void> => {
     try {
