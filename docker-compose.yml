@@ -12,6 +12,7 @@ services:
       PORT: 8090
       REDIS_URL: redis://redis:6379
       QDRANT_URL: http://qdrant:6333
+      QDRANT_SCHEMA_COLLECTION: schema_knowledge
       OLLAMA_BASE_URL: http://ollama:11434
       EMBEDDING_MODEL: nomic-embed-text:latest
       LLM_MODEL: mistral:latest
@@ -38,12 +39,9 @@ services:
       - ./docs:/app/docs
       - ./models:/app/models
     depends_on:
-      qdrant:
-        condition: service_started
-      ollama:
-        condition: service_healthy
-      redis:
-        condition: service_started
+      - qdrant
+      - ollama
+      - redis
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8090/api/health || exit 1"]
       interval: 30s
@@ -60,8 +58,7 @@ services:
     container_name: harpia-frontend
     restart: unless-stopped
     depends_on:
-      backend:
-        condition: service_healthy
+      - backend
     ports:
       - "5173:80"
 
@@ -103,14 +100,13 @@ services:
     container_name: harpia-ollama-init
     restart: "no"
     depends_on:
-      ollama:
-        condition: service_healthy
+      - ollama
     volumes:
       - ollama_data:/root/.ollama
     entrypoint: ["/bin/sh", "-c"]
-    command: >
-      "ollama list | grep -q 'granite4:3b' || ollama pull granite4:3b;
-       ollama list | grep -q 'nomic-embed-text:latest' || ollama pull nomic-embed-text:latest"
+    command: |
+      ollama list | grep -q 'granite4:3b' || ollama pull granite4:3b;
+      ollama list | grep -q 'nomic-embed-text:latest' || ollama pull nomic-embed-text:latest
 
 volumes:
   qdrant_data:
