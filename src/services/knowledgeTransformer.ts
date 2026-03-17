@@ -22,6 +22,8 @@ export interface KnowledgeItem {
   solution: string;
   tables_related: string[];
   tags: string[];
+  tableName?: string;
+  tableSuffix?: string;
 }
 
 type ParsedSchemaTable = {
@@ -86,6 +88,7 @@ export class KnowledgeTransformer {
 
   tableToKnowledgeDocument(tableDef: ParsedSchemaTable, sourceName: string): KnowledgeItem {
     const fkTables = Array.from(new Set((tableDef.foreignKeys || []).map((fk) => fk.referencedTable)));
+    const tablesRelated = [tableDef.table, ...fkTables];
     const columns = Array.isArray(tableDef.columns) ? tableDef.columns : [];
     const limitedColumns = columns.slice(0, this.maxSchemaColumns);
     const extraColumns = Math.max(0, columns.length - limitedColumns.length);
@@ -121,8 +124,10 @@ export class KnowledgeTransformer {
             .map((fk) => `${fk.field} -> ${fk.referencedTable}`)
             .join("; ")}${extraFks > 0 ? `; ... +${extraFks} relacionamentos omitidos` : ""}. ${checkSummary}`
         : `Sem relacionamentos de chave estrangeira identificados. ${checkSummary}`,
-      tables_related: fkTables,
+      tables_related: tablesRelated,
       tags: ["schema", "ddl", tableDef.table],
+      tableName: tableDef.table,
+      tableSuffix: this.safeText(tableDef.table).split("_").pop(),
     };
   }
 

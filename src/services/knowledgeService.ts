@@ -214,7 +214,7 @@ export class KnowledgeService {
         title: structuredData.title,
         source: structuredData.title || structuredData.system || "knowledge-item",
         text,
-        tableName: structuredData.tables_related[0] || extractPrimaryTableName(text),
+        tableName: structuredData.tableName || structuredData.tables_related[0] || extractPrimaryTableName(text),
         relatedTables: structuredData.tables_related || [],
         tags: structuredData.tags || [],
         documentType: structuredData.category === "schema" ? "schema_table" : undefined,
